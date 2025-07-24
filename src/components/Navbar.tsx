@@ -16,9 +16,9 @@ const Navbar = () => {
           <div className="flex-shrink-0">
             <Link
               to="/"
-              className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
+              className="text-xl font-bold bg-gradient-to-r from-[#295bbe] to-blue-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
             >
-              Your App
+              EduCareer
             </Link>
           </div>
 
@@ -32,22 +32,22 @@ const Navbar = () => {
                 Home
               </Link>
               <Link
+                to="/lessons"
+                className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+              >
+                Lessons
+              </Link>
+              <Link
+                to="/jobs"
+                className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+              >
+                Jobs
+              </Link>
+              <Link
                 to="/about"
                 className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
               >
                 About
-              </Link>
-              <Link
-                to="/services"
-                className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-              >
-                Services
-              </Link>
-              <Link
-                to="/contact"
-                className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-              >
-                Contact
               </Link>
             </div>
           </div>
@@ -120,22 +120,22 @@ const Navbar = () => {
               Home
             </Link>
             <Link
+              to="/lessons"
+              className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200"
+            >
+              Lessons
+            </Link>
+            <Link
+              to="/jobs"
+              className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200"
+            >
+              Jobs
+            </Link>
+            <Link
               to="/about"
               className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200"
             >
               About
-            </Link>
-            <Link
-              to="/services"
-              className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200"
-            >
-              Services
-            </Link>
-            <Link
-              to="/contact"
-              className="text-blue-700 hover:text-blue-900 hover:bg-blue-50 block px-3 py-2 rounded-lg text-base font-medium transition-all duration-200"
-            >
-              Contact
             </Link>
             {isAuthenticated ? (
               <>
