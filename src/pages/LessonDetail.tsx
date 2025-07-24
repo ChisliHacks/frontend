@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { lessonsApi, type Lesson, type LessonUpdate } from "../utils/api";
+import {
+  lessonsApi,
+  aiApi,
+  type Lesson,
+  type LessonUpdate,
+  type LessonSummaryResponse,
+} from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 
 const LessonDetail: React.FC = () => {
@@ -13,6 +19,10 @@ const LessonDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [formData, setFormData] = useState<LessonUpdate>({});
+  const [lessonSummary, setLessonSummary] =
+    useState<LessonSummaryResponse | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   useEffect(() => {
     const fetchLesson = async () => {
@@ -85,6 +95,26 @@ const LessonDetail: React.FC = () => {
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message || "Failed to delete lesson");
+    }
+  };
+
+  const handleSummarizeLesson = async () => {
+    if (!id || !lesson) return;
+
+    try {
+      setSummaryLoading(true);
+      setError(null);
+      const summary = await aiApi.summarizeLesson({
+        lesson_id: parseInt(id),
+        summary_type: "general",
+      });
+      setLessonSummary(summary);
+      setShowSummary(true);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || "Failed to summarize lesson with Tuna");
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -161,6 +191,16 @@ const LessonDetail: React.FC = () => {
           </div>
           {isAuthenticated && !isEditing && (
             <div className="flex space-x-3 mt-4 sm:mt-0">
+              <button
+                onClick={handleSummarizeLesson}
+                disabled={summaryLoading}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <span>🐟</span>
+                <span>
+                  {summaryLoading ? "Summarizing..." : "Ask Tuna to Summarize"}
+                </span>
+              </button>
               <button
                 onClick={() => setIsEditing(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
@@ -348,6 +388,53 @@ const LessonDetail: React.FC = () => {
                       </span>
                     )}
                 </div>
+
+                {/* Tuna AI Summary Section */}
+                {showSummary && lessonSummary && (
+                  <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-blue-900 flex items-center space-x-2">
+                        <span>🐟</span>
+                        <span>Tuna's Lesson Summary</span>
+                      </h3>
+                      <button
+                        onClick={() => setShowSummary(false)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="prose max-w-none">
+                      <div className="text-blue-800 mb-4 whitespace-pre-wrap">
+                        {lessonSummary.summary}
+                      </div>
+                      {lessonSummary.key_points.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-2">
+                            Key Points:
+                          </h4>
+                          <ul className="list-disc list-inside space-y-1 text-blue-800">
+                            {lessonSummary.key_points.map((point, index) => (
+                              <li key={index}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {lesson.filename && (

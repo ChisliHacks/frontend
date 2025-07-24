@@ -80,6 +80,52 @@ export interface FileUploadResponse {
   file_size: number;
 }
 
+export interface ChatMessage {
+  role: string; // "user" or "assistant"
+  content: string;
+  timestamp?: string;
+}
+
+export interface ChatRequest {
+  message: string;
+  conversation_history?: ChatMessage[];
+}
+
+export interface ChatResponse {
+  response: string;
+  conversation_id?: string;
+}
+
+export interface SummarizeRequest {
+  text: string;
+  summary_type?: string; // "general", "key_points", "brief"
+}
+
+export interface SummarizeResponse {
+  summary: string;
+  original_length: number;
+  summary_length: number;
+}
+
+export interface LessonSummaryRequest {
+  lesson_id: number;
+  summary_type?: string;
+}
+
+export interface LessonSummaryResponse {
+  lesson_id: number;
+  lesson_title: string;
+  summary: string;
+  key_points: string[];
+}
+
+export interface AIStatusResponse {
+  status: string;
+  model: string;
+  model_available: boolean;
+  message: string;
+}
+
 export interface Job {
   id: number;
   position: string;
@@ -801,5 +847,147 @@ export const uploadApi = {
 
   getFileUrl(filename: string): string {
     return `${API_BASE_URL}/upload/files/${encodeURIComponent(filename)}`;
+  },
+};
+
+export const aiApi = {
+  async chatWithTuna(request: ChatRequest): Promise<ChatResponse> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/chat`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.detail || "Failed to chat with Tuna",
+        response.status
+      );
+    }
+
+    return response.json();
+  },
+
+  async summarizeText(request: SummarizeRequest): Promise<SummarizeResponse> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/summarize`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.detail || "Failed to summarize text",
+        response.status
+      );
+    }
+
+    return response.json();
+  },
+
+  async summarizeLesson(
+    request: LessonSummaryRequest
+  ): Promise<LessonSummaryResponse> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/summarize-lesson`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.detail || "Failed to summarize lesson",
+        response.status
+      );
+    }
+
+    return response.json();
+  },
+
+  async getAIStatus(): Promise<AIStatusResponse> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/status`, {
+      method: "GET",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.detail || "Failed to get AI status",
+        response.status
+      );
+    }
+
+    return response.json();
+  },
+
+  async setupModel(): Promise<{ status: string; message: string }> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/setup-model`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(
+        errorData.detail || "Failed to setup AI model",
+        response.status
+      );
+    }
+
+    return response.json();
   },
 };
