@@ -23,6 +23,52 @@ export interface UserProfile {
   is_active: boolean;
 }
 
+export interface Job {
+  id: number;
+  position: string;
+  company: string;
+  description?: string;
+  job_criteria: string;
+  location?: string;
+  salary_range?: string;
+  job_type: string;
+  remote_option: boolean;
+  experience_level: string;
+  is_active: boolean;
+  recruiter_id?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface JobBasic {
+  id: number;
+  position: string;
+  company: string;
+  location?: string;
+  job_type: string;
+  experience_level: string;
+}
+
+export interface JobCreateOrFind {
+  position: string;
+  company: string;
+  description?: string;
+  job_criteria?: string;
+  location?: string;
+  salary_range?: string;
+  job_type?: string;
+  remote_option?: boolean;
+  experience_level?: string;
+}
+
+export interface RelatedJobBasic {
+  id: number;
+  position: string;
+  company?: string;
+  job_type?: string;
+  experience_level?: string;
+}
+
 export interface Lesson {
   id: number;
   title: string;
@@ -36,6 +82,7 @@ export interface Lesson {
   instructor_id?: number;
   created_at: string;
   updated_at?: string;
+  related_jobs?: RelatedJobBasic[];
 }
 
 export interface LessonListItem {
@@ -50,6 +97,7 @@ export interface LessonListItem {
   is_published: boolean;
   instructor_id?: number;
   created_at: string;
+  related_jobs?: RelatedJobBasic[];
 }
 
 export interface LessonCreate {
@@ -62,6 +110,8 @@ export interface LessonCreate {
   difficulty_level?: string;
   is_published?: boolean;
   instructor_id?: number;
+  related_job_ids?: number[];
+  related_job_positions?: string[];
 }
 
 export interface LessonUpdate {
@@ -74,6 +124,8 @@ export interface LessonUpdate {
   difficulty_level?: string;
   is_published?: boolean;
   instructor_id?: number;
+  related_job_ids?: number[];
+  related_job_positions?: string[];
 }
 
 export interface FileUploadResponse {
@@ -140,6 +192,17 @@ export interface AIStatusResponse {
   model: string;
   model_available: boolean;
   message: string;
+}
+
+export interface JobSuggestionRequest {
+  lesson_title: string;
+  lesson_description: string;
+  lesson_category: string;
+}
+
+export interface JobSuggestionResponse {
+  suggested_job_positions: string[];
+  reasoning: string;
 }
 
 export interface Job {
@@ -887,6 +950,31 @@ export const aiApi = {
     if (!response.ok) {
       const errorData = await response.json();
       throw new ApiError(errorData.detail || "Failed to setup AI model", response.status);
+    }
+
+    return response.json();
+  },
+
+  async suggestJobs(request: JobSuggestionRequest): Promise<JobSuggestionResponse> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/suggest-jobs`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(errorData.detail || "Failed to suggest jobs", response.status);
     }
 
     return response.json();

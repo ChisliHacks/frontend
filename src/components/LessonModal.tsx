@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { uploadApi, type LessonCreate } from "../utils/api";
+import { uploadApi, aiApi, jobsApi, type LessonCreate, type JobListItem } from "../utils/api";
 
 type LessonFormData = {
   title: string;
@@ -10,6 +10,7 @@ type LessonFormData = {
   description?: string;
   duration_minutes?: number;
   is_published: boolean;
+  related_job_ids?: number[];
 };
 
 interface LessonModalProps {
@@ -29,6 +30,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       description: "",
       duration_minutes: undefined,
       is_published: false,
+      related_job_ids: [],
     },
   });
 
@@ -36,6 +38,12 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
   const [estimatedDuration, setEstimatedDuration] = useState<number | null>(null);
   const [processingPDF, setProcessingPDF] = useState(false);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
+
+  // Job-related state
+  const [availableJobs, setAvailableJobs] = useState<JobListItem[]>([]);
+  const [suggestedJobIds, setSuggestedJobIds] = useState<number[]>([]);
+  const [selectedJobIds, setSelectedJobIds] = useState<number[]>([]);
+  const [loadingJobSuggestions, setLoadingJobSuggestions] = useState(false);
 
   const watchedTitle = watch("title");
   const watchedSummary = watch("summary");
@@ -53,6 +61,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       description: data.description || "",
       duration_minutes: data.duration_minutes,
       is_published: data.is_published,
+      related_job_ids: selectedJobIds,
     };
     onSubmit(lessonData, selectedFile || undefined);
   };
@@ -206,6 +215,50 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
     }
   };
 
+  // Load available jobs when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableJobs();
+    }
+  }, [isOpen]);
+
+  const loadAvailableJobs = async () => {
+    try {
+      const jobs = await jobsApi.getActiveJobs({ limit: 1000 });
+      setAvailableJobs(jobs);
+    } catch (error) {
+      console.error("Failed to load jobs:", error);
+    }
+  };
+
+  const handleSuggestJobs = async () => {
+    setLoadingJobSuggestions(true);
+    try {
+      const response = await aiApi.suggestJobs({
+        lesson_title: watchedTitle || "Untitled Lesson",
+        lesson_description: watchedDescription || "",
+        lesson_category: watchedCategory || "General",
+      });
+
+      setSuggestedJobIds(response.suggested_job_ids);
+      // Auto-select suggested jobs
+      setSelectedJobIds(response.suggested_job_ids);
+    } catch (error) {
+      console.error("Failed to get job suggestions:", error);
+      alert("Failed to get job suggestions. Please try again.");
+    } finally {
+      setLoadingJobSuggestions(false);
+    }
+  };
+
+  const handleJobSelection = (jobId: number, selected: boolean) => {
+    if (selected) {
+      setSelectedJobIds((prev) => [...prev, jobId]);
+    } else {
+      setSelectedJobIds((prev) => prev.filter((id) => id !== jobId));
+    }
+  };
+
   const resetForm = () => {
     reset({
       title: "",
@@ -215,11 +268,14 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       description: "",
       duration_minutes: undefined,
       is_published: false,
+      related_job_ids: [],
     });
     setSelectedFile(null);
     setEstimatedDuration(null);
     setProcessingPDF(false);
     setAutoFilledFields([]);
+    setSelectedJobIds([]);
+    setSuggestedJobIds([]);
   };
 
   const handleClose = () => {
@@ -439,6 +495,38 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
                 />
               </div>
             )}
+          </div>
+
+          {/* Related Jobs Section */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">Related Jobs</label>
+              <button
+                type="button"
+                onClick={handleSuggestJobs}
+                disabled={loadingJobSuggestions}
+                className="text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                {loadingJobSuggestions ? "Suggesting..." : "🤖 AI Suggest"}
+              </button>
+            </div>
+
+            {availableJobs.length > 0 ? (
+              <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
+                {availableJobs.map((job) => (
+                  <div key={job.id} className="flex items-center space-x-2 py-1">
+                    <input type="checkbox" id={`job-${job.id}`} checked={selectedJobIds.includes(job.id)} onChange={(e) => handleJobSelection(job.id, e.target.checked)} className="rounded" />
+                    <label htmlFor={`job-${job.id}`} className={`text-sm flex-1 cursor-pointer ${suggestedJobIds.includes(job.id) ? "text-blue-600 font-medium" : "text-gray-700"}`}>
+                      {job.position} at {job.company}
+                      {suggestedJobIds.includes(job.id) && <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1 rounded">AI Suggested</span>}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 py-2">No jobs available for selection.</p>
+            )}
+
+            {selectedJobIds.length > 0 && <p className="text-xs text-gray-600 mt-1">{selectedJobIds.length} job(s) selected</p>}
           </div>
 
           <div className="flex items-center">
