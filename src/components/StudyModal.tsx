@@ -14,7 +14,7 @@ interface VoiceTunaChatProps {
 }
 
 const VoiceTunaChat: React.FC<VoiceTunaChatProps> = ({ messages, inputMessage, setInputMessage, isLoading, sendMessage, clearChat, messagesEndRef, handleQuizAnswer }) => {
-  const [voiceEnabled, setVoiceEnabled] = useState(true); // Auto-enable voice on start
+  const [voiceEnabled, setVoiceEnabled] = useState(true); 
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const synthRef = useRef(window.speechSynthesis);
