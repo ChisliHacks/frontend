@@ -9,6 +9,7 @@ import JobDetail from "../pages/JobDetail";
 import NotFound from "../pages/NotFound";
 import Lessons from "../pages/Lessons";
 import Study from "../pages/Study";
+import TopPerformers from "../pages/TopPerformers";
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +43,10 @@ export const router = createBrowserRouter([
       {
         path: "jobs/:id/edit",
         element: <JobDetail />,
+      },
+      {
+        path: "top-performers",
+        element: <TopPerformers />,
       },
       {
         path: "auth/login",

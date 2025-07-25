@@ -3,9 +3,37 @@ import HeroCarousel from "../components/HeroCarousel";
 import FeaturesSection from "../components/FeaturesSection";
 import Footer from "../components/Footer";
 import { Link } from "react-router";
+import { useState, useEffect } from "react";
+import { authApi, type UserBestJobPerformance } from "../utils/api";
 
 const Home = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const [bestJob, setBestJob] = useState<UserBestJobPerformance | null>(null);
+  const [loadingBestJob, setLoadingBestJob] = useState(false);
+
+  useEffect(() => {
+    const fetchBestJob = async () => {
+      if (isAuthenticated && user) {
+        try {
+          setLoadingBestJob(true);
+          const jobData = await authApi.getUserBestJob();
+          setBestJob(jobData);
+        } catch (error) {
+          // Silently ignore errors - user might not have any lesson data yet
+          console.log("No best job data available:", error);
+        } finally {
+          setLoadingBestJob(false);
+        }
+      }
+    };
+
+    fetchBestJob();
+  }, [isAuthenticated, user]);
+
+  const formatExperienceLevel = (level: string | undefined) => {
+    if (!level) return "";
+    return level.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
 
   if (isLoading) {
     return (
@@ -35,7 +63,7 @@ const Home = () => {
             <p className="text-xl text-gray-600 mb-8">Ready to continue your learning journey?</p>
 
             {/* User Progress Stats */}
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
               <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl shadow-md border border-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
@@ -68,6 +96,56 @@ const Home = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Best Job Performance Card */}
+              {bestJob ? (
+                <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl shadow-md border border-purple-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-purple-600 mb-1">Top Career Match</p>
+                      <p className="text-lg font-bold text-purple-800 mb-1">{bestJob.job_info.position}</p>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        {bestJob.job_info.company && <p>🏢 {bestJob.job_info.company}</p>}
+                        {bestJob.job_info.experience_level && <p>📊 {formatExperienceLevel(bestJob.job_info.experience_level)}</p>}
+                        <p>🎯 {bestJob.performance.total_job_score} pts</p>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-purple-100 rounded-full">
+                      <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 00-2 2H10a2 2 0 00-2-2V6m8 0h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h2"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              ) : loadingBestJob ? (
+                <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl shadow-md border border-gray-100">
+                  <div className="flex items-center justify-center h-full">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-400 border-t-transparent"></div>
+                    <span className="ml-2 text-gray-600 text-sm">Loading career match...</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl shadow-md border border-gray-100">
+                  <div className="text-center">
+                    <div className="p-3 bg-gray-100 rounded-full inline-block mb-2">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 00-2 2H10a2 2 0 00-2-2V6m8 0h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h2"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-gray-600">Complete lessons to discover your career matches!</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

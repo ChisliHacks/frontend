@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 // VoiceTunaChat: Voice-enabled chat for StudyModal
-import { useVoiceNavigation } from "../hooks/useVoiceNavigation";
 
 interface VoiceTunaChatProps {
   messages: ExtendedChatMessage[];
@@ -11,133 +10,146 @@ interface VoiceTunaChatProps {
   sendMessage: (e: React.FormEvent) => void;
   clearChat: () => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
-  handleQuizAnswer: (
-    questionIndex: number,
-    selectedOption: number,
-    optionText: string,
-    messageIndex: number
-  ) => void;
+  handleQuizAnswer: (questionIndex: number, selectedOption: number, optionText: string, messageIndex: number) => void;
 }
 
-const VoiceTunaChat: React.FC<VoiceTunaChatProps> = ({
-  messages,
-  inputMessage,
-  setInputMessage,
-  isLoading,
-  sendMessage,
-  clearChat,
-  messagesEndRef,
-  handleQuizAnswer,
-}) => {
-  const [voiceMode, setVoiceMode] = useState(false);
+const VoiceTunaChat: React.FC<VoiceTunaChatProps> = ({ messages, inputMessage, setInputMessage, isLoading, sendMessage, clearChat, messagesEndRef, handleQuizAnswer }) => {
+  const [voiceEnabled, setVoiceEnabled] = useState(true); // Auto-enable voice on start
+  const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  // Removed unused listening state
   const synthRef = useRef(window.speechSynthesis);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const lastSpokenRef = useRef("");
 
   // Speak last AI message when it arrives
   useEffect(() => {
-    if (!voiceMode) return;
+    if (!voiceEnabled) return;
+    if (!window.speechSynthesis) return;
+    if (messages.length === 0) return;
     const lastMsg = messages[messages.length - 1];
-    if (
-      lastMsg &&
-      lastMsg.role === "assistant" &&
-      lastMsg.content !== lastSpokenRef.current
-    ) {
+    if (lastMsg && lastMsg.role === "assistant" && lastMsg.content && lastMsg.content !== lastSpokenRef.current) {
       lastSpokenRef.current = lastMsg.content;
       setSpeaking(true);
       const utter = new window.SpeechSynthesisUtterance(lastMsg.content);
-      utter.onend = () => setSpeaking(false);
+      utter.onend = () => {
+        setSpeaking(false);
+        // Restart listening after AI finishes speaking
+        setTimeout(() => {
+          if (recognitionRef.current && voiceEnabled && !isLoading) {
+            recognitionRef.current.start();
+          }
+        }, 500);
+      };
       synthRef.current.cancel();
       synthRef.current.speak(utter);
     }
-  }, [messages, voiceMode]);
+  }, [messages, voiceEnabled, isLoading]);
 
-  // Listen for user speech
-  const { listening: navListening } = useVoiceNavigation((text) => {
-    if (voiceMode && !isLoading) {
-      setInputMessage(text);
-      // Auto-send on voice input
+  // Voice input setup
+  useEffect(() => {
+    if (!voiceEnabled) return;
+    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "id-ID";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => {
+      setListening(false);
+      // Auto-restart listening after a short delay when voice is enabled
+      if (voiceEnabled && !isLoading) {
+        setTimeout(() => {
+          if (recognitionRef.current && voiceEnabled) {
+            recognitionRef.current.start();
+          }
+        }, 1000);
+      }
+    };
+    recognition.onerror = () => {
+      setListening(false);
+      // Auto-restart listening after error if voice is still enabled
+      if (voiceEnabled && !isLoading) {
+        setTimeout(() => {
+          if (recognitionRef.current && voiceEnabled) {
+            recognitionRef.current.start();
+          }
+        }, 2000);
+      }
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputMessage(transcript);
+      // Auto-send after speaking
       setTimeout(() => {
         const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
         sendMessage(fakeEvent);
       }, 300);
+    };
+
+    // Start listening immediately when voice is enabled
+    if (voiceEnabled && !isLoading) {
+      recognition.start();
     }
-  });
+
+    return () => {
+      recognition.stop();
+    };
+  }, [voiceEnabled, sendMessage, setInputMessage, isLoading]);
 
   // Voice mode UI
   return (
     <div className="h-full flex flex-col" data-tuna-chat>
       {/* Voice Mode Controls */}
-      <div className="flex items-center justify-between px-4 pt-2 pb-1">
-        <div className="flex items-center space-x-2">
-          <button
-            className={`px-3 py-1 rounded text-xs font-semibold ${
-              voiceMode ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"
-            }`}
-            onClick={() => setVoiceMode((v) => !v)}
-          >
-            {voiceMode ? "🔊 Voice ON" : "🔇 Voice OFF"}
-          </button>
-          {voiceMode && (
-            <span className="text-xs text-gray-500">
-              {speaking
-                ? "Speaking..."
-                : navListening
-                ? "Listening..."
-                : "Press Backspace to talk"}
-            </span>
-          )}
+      {voiceEnabled ? (
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-semibold text-blue-600">🔊 Voice Mode Active</span>
+              <span className="text-xs text-gray-500">{speaking ? "Speaking..." : listening ? "Listening..." : "Ready to listen"}</span>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <button className="px-3 py-1 rounded text-xs bg-red-500 text-white hover:bg-red-400" onClick={() => setVoiceEnabled(false)}>
+              Turn Off Voice
+            </button>
+          </div>
         </div>
-        <button
-          className="px-2 py-1 rounded text-xs bg-red-500 text-white hover:bg-red-400"
-          onClick={() => setVoiceMode(false)}
-        >
-          Close Voice
-        </button>
-        {/* Fix: removed stray parenthesis */}
-      </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500">🔇 Voice Mode Disabled</span>
+          </div>
+          <div className="flex space-x-2">
+            <button className="px-3 py-1 rounded text-xs bg-blue-600 text-white hover:bg-blue-700" onClick={() => setVoiceEnabled(true)}>
+              Turn On Voice
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
           <div key={index}>
-            <div
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  message.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-800"
-                }`}
-              >
-                <div className="whitespace-pre-wrap text-sm">
-                  {message.content}
-                </div>
-                {message.timestamp && (
-                  <div className="text-xs opacity-70 mt-1">
-                    {new Date(message.timestamp).toLocaleTimeString()}
-                  </div>
-                )}
+            <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"}`}>
+                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                {message.timestamp && <div className="text-xs opacity-70 mt-1">{new Date(message.timestamp).toLocaleTimeString()}</div>}
               </div>
             </div>
             {/* Render quiz component if this message contains quiz data */}
             {message.role === "assistant" && message.quizData && (
               <div className="mt-2">
-                <QuizComponent
-                  quizData={message.quizData}
-                  onAnswer={(questionIndex, selectedOption, optionText) =>
-                    handleQuizAnswer(
-                      questionIndex,
-                      selectedOption,
-                      optionText,
-                      index
-                    )
-                  }
-                />
+                <QuizComponent quizData={message.quizData} onAnswer={(questionIndex, selectedOption, optionText) => handleQuizAnswer(questionIndex, selectedOption, optionText, index)} />
               </div>
             )}
           </div>
@@ -158,10 +170,7 @@ const VoiceTunaChat: React.FC<VoiceTunaChatProps> = ({
       {/* Chat Input */}
       <div className="border-t border-gray-200 p-4">
         <div className="flex space-x-2 mb-2">
-          <button
-            onClick={clearChat}
-            className="text-xs text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={clearChat} className="text-xs text-gray-500 hover:text-gray-700">
             Clear Chat
           </button>
         </div>
@@ -170,11 +179,7 @@ const VoiceTunaChat: React.FC<VoiceTunaChatProps> = ({
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder={
-              voiceMode
-                ? "Speak or type your question..."
-                : "Ask about this lesson..."
-            }
+            placeholder={voiceEnabled ? "Speak or type your question..." : "Ask about this lesson..."}
             className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             disabled={isLoading}
             data-tuna-input
@@ -182,33 +187,23 @@ const VoiceTunaChat: React.FC<VoiceTunaChatProps> = ({
           <button
             type="submit"
             disabled={isLoading || !inputMessage.trim()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
             Send
           </button>
         </form>
         <div className="mt-2 text-xs text-gray-500">
-          💡 Ask about specific concepts, request explanations, or get study
-          tips
+          💡 {voiceEnabled ? "Voice is always listening - just speak naturally" : "Ask about specific concepts, request explanations, or get study tips"}
         </div>
       </div>
     </div>
   );
 };
-import {
-  aiApi,
-  type ChatMessage,
-  type ChatResponse,
-  type ChapterizedSummaryResponse,
-} from "../utils/api";
+import { aiApi, type ChatMessage, type ChatResponse, type ChapterizedSummaryResponse } from "../utils/api";
 import PDFViewer from "./PDFViewer";
 import { useLocation } from "react-router";
 import { parseChaptersFromLLMSummary } from "../utils/lessonParser";
 import QuizComponent, { type QuizData } from "./QuizComponent";
-import {
-  parseQuizFromAIResponse,
-  formatQuizAnswerForAI,
-} from "../utils/quizParser";
+import { parseQuizFromAIResponse, formatQuizAnswerForAI } from "../utils/quizParser";
 
 interface ExtendedChatMessage extends ChatMessage {
   quizData?: QuizData;
@@ -225,15 +220,7 @@ interface StudyModalProps {
 }
 
 const StudyModal: React.FC<StudyModalProps> = (props) => {
-  const {
-    isOpen,
-    onClose,
-    lessonTitle,
-    lessonId,
-    pdfUrl,
-    summary,
-    chapters = [],
-  } = props;
+  const { isOpen, onClose, lessonTitle, lessonId, pdfUrl, summary, chapters = [] } = props;
   const location = useLocation();
 
   const [messages, setMessages] = useState<ExtendedChatMessage[]>([
@@ -245,19 +232,14 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [chapterizedSummary, setChapterizedSummary] =
-    useState<ChapterizedSummaryResponse | null>(null);
+  const [chapterizedSummary, setChapterizedSummary] = useState<ChapterizedSummaryResponse | null>(null);
   const [isLoadingChapters, setIsLoadingChapters] = useState(false);
   const tabFromUrl = (() => {
     const match = location.pathname.match(/\/study\/(summary|chapters|chat)$/);
     return match ? match[1] : "chat";
   })();
-  const [activeTab, setActiveTab] = useState<"chat" | "chapters" | "summary">(
-    tabFromUrl as "chat" | "chapters" | "summary"
-  );
-  const messagesEndRef = useRef<HTMLDivElement>(
-    null
-  ) as React.RefObject<HTMLDivElement>;
+  const [activeTab, setActiveTab] = useState<"chat" | "chapters" | "summary">(tabFromUrl as "chat" | "chapters" | "summary");
+  const messagesEndRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -296,23 +278,13 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
     }
   }, [isOpen, lessonTitle, lessonId, loadChapterizedSummary]);
 
-  const handleQuizAnswer = async (
-    questionIndex: number,
-    selectedOption: number,
-    optionText: string,
-    messageIndex: number
-  ) => {
+  const handleQuizAnswer = async (questionIndex: number, selectedOption: number, optionText: string, messageIndex: number) => {
     // Find the message with the quiz
     const quizMessage = messages[messageIndex];
     if (!quizMessage?.quizData) return;
 
     const questionText = quizMessage.quizData.questions[questionIndex].question;
-    const formattedAnswer = formatQuizAnswerForAI(
-      questionIndex,
-      selectedOption,
-      optionText,
-      questionText
-    );
+    const formattedAnswer = formatQuizAnswerForAI(questionIndex, selectedOption, optionText, questionText);
 
     // Send answer to AI for feedback WITHOUT adding user message to chat
     setIsLoading(true);
@@ -336,8 +308,7 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
       console.error("Failed to get quiz feedback:", error);
       const errorMessage: ExtendedChatMessage = {
         role: "assistant",
-        content:
-          "I'm sorry, I'm having trouble providing feedback right now. Please try again later.",
+        content: "I'm sorry, I'm having trouble providing feedback right now. Please try again later.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -390,8 +361,7 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
       console.error("Failed to send message:", error);
       const errorMessage: ExtendedChatMessage = {
         role: "assistant",
-        content:
-          "I'm sorry, I'm having trouble responding right now. Please try again later.",
+        content: "I'm sorry, I'm having trouble responding right now. Please try again later.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -424,10 +394,7 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
               <p className="text-sm opacity-90">{lessonTitle}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="bg-red-500 hover:bg-red-400 px-4 py-2 rounded text-sm"
-          >
+          <button onClick={onClose} className="bg-red-500 hover:bg-red-400 px-4 py-2 rounded text-sm">
             Close Study Mode
           </button>
         </div>
@@ -451,32 +418,17 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
               <div className="flex">
                 <button
                   onClick={() => setActiveTab("chat")}
-                  className={`px-4 py-3 text-sm font-medium ${
-                    activeTab === "chat"
-                      ? "bg-white text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
+                  className={`px-4 py-3 text-sm font-medium ${activeTab === "chat" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
                   🐟 Ask Tuna
                 </button>
                 <button
                   onClick={() => setActiveTab("chapters")}
-                  className={`px-4 py-3 text-sm font-medium ${
-                    activeTab === "chapters"
-                      ? "bg-white text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
+                  className={`px-4 py-3 text-sm font-medium ${activeTab === "chapters" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
                   📖 Chapters
                 </button>
                 <button
                   onClick={() => setActiveTab("summary")}
-                  className={`px-4 py-3 text-sm font-medium ${
-                    activeTab === "summary"
-                      ? "bg-white text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
+                  className={`px-4 py-3 text-sm font-medium ${activeTab === "summary" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
                   📝 Summary
                 </button>
               </div>
@@ -500,36 +452,24 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
 
               {activeTab === "chapters" && (
                 <div className="h-full overflow-y-auto p-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">
-                    Chapter Breakdown (AI Generated)
-                  </h4>
+                  <h4 className="font-semibold text-gray-800 mb-3">Chapter Breakdown (AI Generated)</h4>
                   {isLoadingChapters ? (
                     <div className="flex items-center justify-center h-32">
                       <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
                       <span className="ml-2">Generating chapters...</span>
                     </div>
-                  ) : chapterizedSummary &&
-                    chapterizedSummary.chapters.length > 0 ? (
+                  ) : chapterizedSummary && chapterizedSummary.chapters.length > 0 ? (
                     <div className="space-y-4">
                       {chapterizedSummary.chapters.map((chapter, index) => {
                         // Parse chapter title and content
                         const lines = chapter.split("\n");
-                        const title =
-                          lines[0]?.replace(/^Chapter \d+:\s*/, "") ||
-                          `Chapter ${index + 1}`;
+                        const title = lines[0]?.replace(/^Chapter \d+:\s*/, "") || `Chapter ${index + 1}`;
                         const content = lines.slice(1).join("\n").trim();
 
                         return (
-                          <div
-                            key={index}
-                            className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500"
-                          >
-                            <h5 className="font-medium text-gray-800 mb-2 text-base">
-                              {title}
-                            </h5>
-                            <div className="text-gray-700 text-sm whitespace-pre-wrap">
-                              {content}
-                            </div>
+                          <div key={index} className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
+                            <h5 className="font-medium text-gray-800 mb-2 text-base">{title}</h5>
+                            <div className="text-gray-700 text-sm whitespace-pre-wrap">{content}</div>
                           </div>
                         );
                       })}
@@ -537,44 +477,28 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
                   ) : chapters.length > 0 ? (
                     // Fallback to legacy chapters if LLM failed
                     <div className="space-y-3">
-                      {parseChaptersFromLLMSummary(chapters).map(
-                        (chapter, index) => (
-                          <div
-                            key={index}
-                            className="bg-gray-50 p-3 rounded-lg"
-                          >
-                            <h5 className="font-medium text-gray-800 mb-2">
-                              Chapter {index + 1}
-                            </h5>
-                            <p className="text-gray-700 text-sm">{chapter}</p>
-                          </div>
-                        )
-                      )}
+                      {parseChaptersFromLLMSummary(chapters).map((chapter, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                          <h5 className="font-medium text-gray-800 mb-2">Chapter {index + 1}</h5>
+                          <p className="text-gray-700 text-sm">{chapter}</p>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <div className="text-gray-500 italic">
-                      No chapter breakdown available. Try refreshing to
-                      regenerate chapters with AI.
-                    </div>
+                    <div className="text-gray-500 italic">No chapter breakdown available. Try refreshing to regenerate chapters with AI.</div>
                   )}
                 </div>
               )}
 
               {activeTab === "summary" && (
                 <div className="h-full overflow-y-auto p-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">
-                    Lesson Summary
-                  </h4>
+                  <h4 className="font-semibold text-gray-800 mb-3">Lesson Summary</h4>
                   {summary ? (
                     <div className="prose max-w-none">
-                      <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
-                        {summary}
-                      </div>
+                      <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">{summary}</div>
                     </div>
                   ) : (
-                    <div className="text-gray-500 italic">
-                      No summary available for this lesson.
-                    </div>
+                    <div className="text-gray-500 italic">No summary available for this lesson.</div>
                   )}
                 </div>
               )}

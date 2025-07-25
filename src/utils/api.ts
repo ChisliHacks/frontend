@@ -25,6 +25,61 @@ export interface UserProfile {
   total_lesson_score: number;
 }
 
+export interface TopPerformer {
+  id: number;
+  username: string;
+  lessons_completed: number;
+  total_lesson_score: number;
+  average_score: number;
+  created_at?: string;
+}
+
+export interface LeaderboardResponse {
+  top_performers: TopPerformer[];
+  total_count: number;
+}
+
+export interface JobPerformer extends TopPerformer {
+  job_specific_score: number;
+  related_lessons_count: number;
+}
+
+export interface JobInfo {
+  id: number;
+  position: string;
+  company?: string;
+  job_type?: string;
+  experience_level?: string;
+  industry?: string;
+  related_lessons_count: number;
+}
+
+export interface JobLeaderboardEntry {
+  job_info: JobInfo;
+  top_performers: JobPerformer[];
+}
+
+export interface JobLeaderboardResponse {
+  [jobPosition: string]: JobLeaderboardEntry;
+}
+
+export interface UserBestJobPerformance {
+  job_info: {
+    id: number;
+    position: string;
+    company?: string;
+    job_type?: string;
+    experience_level?: string;
+    industry?: string;
+  };
+  performance: {
+    total_job_score: number;
+    completed_lessons: number;
+    average_score: number;
+    related_lessons_available: number;
+  };
+}
+
 export interface Job {
   id: number;
   position: string;
@@ -386,6 +441,58 @@ export const authApi = {
     if (!response.ok) {
       const errorData = await response.json();
       throw new ApiError(errorData.detail || "Failed to complete lesson", response.status);
+    }
+
+    return response.json();
+  },
+
+  async getLeaderboard(limit: number = 10): Promise<LeaderboardResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/leaderboard?limit=${limit}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(errorData.detail || "Failed to fetch leaderboard", response.status);
+    }
+
+    return response.json();
+  },
+
+  async getLeaderboardByJobs(limit?: number): Promise<JobLeaderboardResponse> {
+    const url = new URL(`${API_BASE_URL}/auth/leaderboard/by-jobs`);
+    if (limit) url.searchParams.append("limit", limit.toString());
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(errorData.detail || "Failed to fetch job-specific leaderboard", response.status);
+    }
+
+    return response.json();
+  },
+
+  async getUserBestJob(): Promise<UserBestJobPerformance> {
+    const response = await fetch(`${API_BASE_URL}/auth/me/best-job`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(errorData.detail || "Failed to fetch user's best job performance", response.status);
     }
 
     return response.json();
