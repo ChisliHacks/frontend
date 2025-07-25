@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { lessonsApi, authApi, type Lesson, type LessonUpdate } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
-import StudyModal from "../components/StudyModal";
 
 const LessonDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +13,6 @@ const LessonDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [formData, setFormData] = useState<LessonUpdate>({});
-  const [showStudyModal, setShowStudyModal] = useState(false);
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
 
   const handleCompleteLesson = async () => {
@@ -321,7 +319,7 @@ const LessonDetail: React.FC = () => {
                         <button
                           onClick={() => {
                             handleCompleteLesson();
-                            setShowStudyModal(true);
+                            navigate(`/lessons/${lesson.id}/study`);
                           }}
                           className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm">
                           Study
@@ -348,18 +346,6 @@ const LessonDetail: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Study Modal */}
-      {showStudyModal && lesson && lesson.filename && (
-        <StudyModal
-          isOpen={showStudyModal}
-          onClose={() => setShowStudyModal(false)}
-          lessonTitle={lesson.title}
-          lessonId={lesson.id}
-          pdfUrl={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1"}/upload/files/${encodeURIComponent(lesson.filename)}`}
-          summary={lesson.summary}
-        />
-      )}
     </div>
   );
 };

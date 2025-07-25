@@ -8,6 +8,7 @@ import LessonDetail from "../pages/LessonDetail";
 import JobDetail from "../pages/JobDetail";
 import NotFound from "../pages/NotFound";
 import Lessons from "../pages/Lessons";
+import Study from "../pages/Study";
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +52,10 @@ export const router = createBrowserRouter([
         element: <Signup />,
       },
     ],
+  },
+  {
+    path: "/lessons/:id/study",
+    element: <Study />,
   },
   {
     path: "*",

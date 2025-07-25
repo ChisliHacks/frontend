@@ -28,20 +28,11 @@ export function parseChaptersFromSummary(summary: string): string[] {
 
   const chapters: string[] = [];
 
-  // Split by common chapter delimiters
-  const chapterPatterns = [
-    /(?:^|\n)(?:Chapter|CHAPTER)\s*(\d+)[:\.\-\s]/gm,
-    /(?:^|\n)(\d+)\.\s*([A-Z][^.\n]*)/gm,
-    /(?:^|\n)(?:Section|SECTION)\s*([A-Za-z0-9]+)[:\.\-\s]/gm,
-    /(?:^|\n)([A-Z][A-Z\s]{2,})[:\n]/gm, // All caps headings
-    /(?:^|\n)(#{1,3})\s*([^\n]+)/gm, // Markdown headings
-  ];
-
   // Try to split by double newlines first (paragraph breaks)
   const paragraphs = summary.split(/\n\s*\n/);
 
   if (paragraphs.length > 1) {
-    paragraphs.forEach((paragraph, index) => {
+    paragraphs.forEach((paragraph) => {
       const trimmed = paragraph.trim();
       if (trimmed.length > 50) {
         // Only include substantial paragraphs
@@ -63,9 +54,7 @@ export function parseChaptersFromSummary(summary: string): string[] {
 
       // Check if this looks like a chapter/section header
       if (
-        /^(\d+[\.\)]\s*|[A-Z]\.\s*|Chapter\s*\d+|Section\s*[A-Za-z0-9]+|#{1,3}\s*)/.test(
-          trimmed
-        ) ||
+        /^(\d+[\.\)]\s*|[A-Z]\.\s*|Chapter\s*\d+|Section\s*[A-Za-z0-9]+|#{1,3}\s*)/.test(trimmed) ||
         /^[A-Z][A-Z\s]{5,}$/.test(trimmed) // All caps headers
       ) {
         // Save previous chapter if it exists
@@ -87,9 +76,7 @@ export function parseChaptersFromSummary(summary: string): string[] {
   // If we still don't have good chapters, split by sentences and group them
   if (chapters.length < 2) {
     chapters.length = 0;
-    const sentences = summary
-      .split(/[.!?]+/)
-      .filter((s) => s.trim().length > 20);
+    const sentences = summary.split(/[.!?]+/).filter((s) => s.trim().length > 20);
 
     // Group sentences into chunks of 3-4
     for (let i = 0; i < sentences.length; i += 3) {
@@ -121,32 +108,17 @@ export function extractKeyConcepts(summary: string): string[] {
   // Look for bullet points or numbered lists
   const bulletPoints = summary.match(/(?:^|\n)[\-\*\•]\s*([^\n]+)/gm);
   if (bulletPoints) {
-    concepts.push(
-      ...bulletPoints.map((point) => point.replace(/^[\n\-\*\•]\s*/, "").trim())
-    );
+    concepts.push(...bulletPoints.map((point) => point.replace(/^[\n\-\*\•]\s*/, "").trim()));
   }
 
   // Look for numbered points
   const numberedPoints = summary.match(/(?:^|\n)\d+\.\s*([^\n]+)/gm);
   if (numberedPoints) {
-    concepts.push(
-      ...numberedPoints.map((point) => point.replace(/^[\n\d\.\s]*/, "").trim())
-    );
+    concepts.push(...numberedPoints.map((point) => point.replace(/^[\n\d\.\s]*/, "").trim()));
   }
 
   // Look for phrases that start with key concept indicators
-  const conceptIndicators = [
-    "Key point",
-    "Important",
-    "Remember",
-    "Note that",
-    "Concept",
-    "Definition",
-    "Principle",
-    "Rule",
-    "Law",
-    "Theory",
-  ];
+  const conceptIndicators = ["Key point", "Important", "Remember", "Note that", "Concept", "Definition", "Principle", "Rule", "Law", "Theory"];
 
   conceptIndicators.forEach((indicator) => {
     const regex = new RegExp(`${indicator}[:\s]*([^.!?\\n]+)`, "gi");
@@ -182,15 +154,10 @@ export function generateStudyQuestions(summary: string): string[] {
   }
 
   if (summary.toLowerCase().includes("example")) {
-    questions.push(
-      "Can you provide more examples to illustrate these concepts?"
-    );
+    questions.push("Can you provide more examples to illustrate these concepts?");
   }
 
-  if (
-    summary.toLowerCase().includes("process") ||
-    summary.toLowerCase().includes("step")
-  ) {
+  if (summary.toLowerCase().includes("process") || summary.toLowerCase().includes("step")) {
     questions.push("Can you walk me through the process step by step?");
   }
 
