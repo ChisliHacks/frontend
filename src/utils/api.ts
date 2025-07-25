@@ -49,18 +49,6 @@ export interface JobBasic {
   experience_level: string;
 }
 
-export interface JobCreateOrFind {
-  position: string;
-  company: string;
-  description?: string;
-  job_criteria?: string;
-  location?: string;
-  salary_range?: string;
-  job_type?: string;
-  remote_option?: boolean;
-  experience_level?: string;
-}
-
 export interface RelatedJobBasic {
   id: number;
   position: string;
@@ -202,6 +190,17 @@ export interface JobSuggestionRequest {
 
 export interface JobSuggestionResponse {
   suggested_job_positions: string[];
+  reasoning: string;
+}
+
+export interface CategorySuggestionRequest {
+  lesson_title: string;
+  lesson_description?: string;
+  lesson_content?: string;
+}
+
+export interface CategorySuggestionResponse {
+  suggested_category: string;
   reasoning: string;
 }
 
@@ -975,6 +974,31 @@ export const aiApi = {
     if (!response.ok) {
       const errorData = await response.json();
       throw new ApiError(errorData.detail || "Failed to suggest jobs", response.status);
+    }
+
+    return response.json();
+  },
+
+  async suggestCategory(request: CategorySuggestionRequest): Promise<CategorySuggestionResponse> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ai/suggest-category`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(errorData.detail || "Failed to suggest category", response.status);
     }
 
     return response.json();

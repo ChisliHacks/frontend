@@ -11,6 +11,7 @@ type LessonFormData = {
   duration_minutes?: number;
   is_published: boolean;
   related_job_ids?: number[];
+  related_job_positions?: string[];
 };
 
 interface LessonModalProps {
@@ -31,6 +32,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       duration_minutes: undefined,
       is_published: false,
       related_job_ids: [],
+      related_job_positions: [],
     },
   });
 
@@ -41,9 +43,10 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
 
   // Job-related state
   const [availableJobs, setAvailableJobs] = useState<JobListItem[]>([]);
-  const [suggestedJobIds, setSuggestedJobIds] = useState<number[]>([]);
   const [selectedJobIds, setSelectedJobIds] = useState<number[]>([]);
+  const [selectedJobPositions, setSelectedJobPositions] = useState<string[]>([]);
   const [loadingJobSuggestions, setLoadingJobSuggestions] = useState(false);
+  const [loadingCategorySuggestion, setLoadingCategorySuggestion] = useState(false);
 
   const watchedTitle = watch("title");
   const watchedSummary = watch("summary");
@@ -62,6 +65,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       duration_minutes: data.duration_minutes,
       is_published: data.is_published,
       related_job_ids: selectedJobIds,
+      related_job_positions: selectedJobPositions,
     };
     onSubmit(lessonData, selectedFile || undefined);
   };
@@ -240,14 +244,37 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
         lesson_category: watchedCategory || "General",
       });
 
-      setSuggestedJobIds(response.suggested_job_ids);
-      // Auto-select suggested jobs
-      setSelectedJobIds(response.suggested_job_ids);
+      // Add the suggested positions to selected job positions
+      setSelectedJobPositions((prev) => {
+        const combined = [...prev, ...(response.suggested_job_positions || [])];
+        return [...new Set(combined)]; // Remove duplicates
+      });
     } catch (error) {
       console.error("Failed to get job suggestions:", error);
       alert("Failed to get job suggestions. Please try again.");
     } finally {
       setLoadingJobSuggestions(false);
+    }
+  };
+
+  const handleSuggestCategory = async () => {
+    setLoadingCategorySuggestion(true);
+    try {
+      const response = await aiApi.suggestCategory({
+        lesson_title: watchedTitle || "Untitled Lesson",
+        lesson_description: watchedDescription || "",
+        lesson_content: "", // We don't have full content access in the modal
+      });
+
+      if (response.suggested_category) {
+        setValue("category", response.suggested_category);
+        setAutoFilledFields((prev) => [...prev.filter((f) => f !== "category"), "category"]);
+      }
+    } catch (error) {
+      console.error("Failed to get category suggestion:", error);
+      alert("Failed to get category suggestion. Please try again.");
+    } finally {
+      setLoadingCategorySuggestion(false);
     }
   };
 
@@ -257,6 +284,10 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
     } else {
       setSelectedJobIds((prev) => prev.filter((id) => id !== jobId));
     }
+  };
+
+  const handleJobPositionRemove = (position: string) => {
+    setSelectedJobPositions((prev) => prev.filter((p) => p !== position));
   };
 
   const resetForm = () => {
@@ -269,13 +300,16 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       duration_minutes: undefined,
       is_published: false,
       related_job_ids: [],
+      related_job_positions: [],
     });
     setSelectedFile(null);
     setEstimatedDuration(null);
     setProcessingPDF(false);
     setAutoFilledFields([]);
     setSelectedJobIds([]);
-    setSuggestedJobIds([]);
+    setSelectedJobPositions([]);
+    setLoadingJobSuggestions(false);
+    setLoadingCategorySuggestion(false);
   };
 
   const handleClose = () => {
@@ -414,7 +448,16 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">Category *</label>
+              <button
+                type="button"
+                onClick={handleSuggestCategory}
+                disabled={loadingCategorySuggestion || !watchedTitle}
+                className="text-xs px-2 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                {loadingCategorySuggestion ? "Suggesting..." : "🤖 AI Suggest"}
+              </button>
+            </div>
             <Controller
               name="category"
               control={control}
@@ -510,23 +553,47 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
               </button>
             </div>
 
-            {availableJobs.length > 0 ? (
-              <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
-                {availableJobs.map((job) => (
-                  <div key={job.id} className="flex items-center space-x-2 py-1">
-                    <input type="checkbox" id={`job-${job.id}`} checked={selectedJobIds.includes(job.id)} onChange={(e) => handleJobSelection(job.id, e.target.checked)} className="rounded" />
-                    <label htmlFor={`job-${job.id}`} className={`text-sm flex-1 cursor-pointer ${suggestedJobIds.includes(job.id) ? "text-blue-600 font-medium" : "text-gray-700"}`}>
-                      {job.position} at {job.company}
-                      {suggestedJobIds.includes(job.id) && <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1 rounded">AI Suggested</span>}
-                    </label>
-                  </div>
-                ))}
+            {/* AI Suggested Job Positions */}
+            {selectedJobPositions.length > 0 && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">AI Suggested Positions:</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedJobPositions.map((position, index) => (
+                    <span key={index} className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                      {position}
+                      <button type="button" onClick={() => handleJobPositionRemove(position)} className="ml-1 text-blue-600 hover:text-blue-800">
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <p className="text-sm text-gray-500 py-2">No jobs available for selection.</p>
             )}
 
-            {selectedJobIds.length > 0 && <p className="text-xs text-gray-600 mt-1">{selectedJobIds.length} job(s) selected</p>}
+            {/* Existing Jobs from Database */}
+            {availableJobs.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Available Jobs from Database:</p>
+                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
+                  {availableJobs.map((job) => (
+                    <div key={job.id} className="flex items-center space-x-2 py-1">
+                      <input type="checkbox" id={`job-${job.id}`} checked={selectedJobIds.includes(job.id)} onChange={(e) => handleJobSelection(job.id, e.target.checked)} className="rounded" />
+                      <label htmlFor={`job-${job.id}`} className="text-sm flex-1 cursor-pointer text-gray-700">
+                        {job.position} at {job.company}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {availableJobs.length === 0 && selectedJobPositions.length === 0 && <p className="text-sm text-gray-500 py-2">No jobs selected. Use AI Suggest to get job recommendations.</p>}
+
+            {(selectedJobIds.length > 0 || selectedJobPositions.length > 0) && (
+              <p className="text-xs text-gray-600 mt-1">
+                {selectedJobIds.length} existing job(s) + {selectedJobPositions.length} AI suggested position(s) selected
+              </p>
+            )}
           </div>
 
           <div className="flex items-center">
