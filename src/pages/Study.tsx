@@ -1,9 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
-import { aiApi, lessonsApi, type ChatMessage, type ChatResponse, type ChapterizedSummaryResponse, type Lesson } from "../utils/api";
+import {
+  aiApi,
+  lessonsApi,
+  type ChatMessage,
+  type ChatResponse,
+  type ChapterizedSummaryResponse,
+  type Lesson,
+} from "../utils/api";
 import PDFViewer from "../components/PDFViewer";
 import QuizComponent, { type QuizData } from "../components/QuizComponent";
-import { parseQuizFromAIResponse, formatQuizAnswerForAI } from "../utils/quizParser";
+import {
+  parseQuizFromAIResponse,
+  formatQuizAnswerForAI,
+} from "../utils/quizParser";
 
 interface ExtendedChatMessage extends ChatMessage {
   quizData?: QuizData;
@@ -19,9 +29,12 @@ const Study: React.FC = () => {
   const [messages, setMessages] = useState<ExtendedChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [chapterizedSummary, setChapterizedSummary] = useState<ChapterizedSummaryResponse | null>(null);
+  const [chapterizedSummary, setChapterizedSummary] =
+    useState<ChapterizedSummaryResponse | null>(null);
   const [isLoadingChapters, setIsLoadingChapters] = useState(false);
-  const [activeTab, setActiveTab] = useState<"summary" | "chapters" | "chat">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "chapters" | "chat">(
+    "summary"
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -85,13 +98,23 @@ const Study: React.FC = () => {
     }
   }, [lesson, loadChapterizedSummary]);
 
-  const handleQuizAnswer = async (questionIndex: number, selectedOption: number, optionText: string, messageIndex: number) => {
+  const handleQuizAnswer = async (
+    questionIndex: number,
+    selectedOption: number,
+    optionText: string,
+    messageIndex: number
+  ) => {
     // Find the message with the quiz
     const quizMessage = messages[messageIndex];
     if (!quizMessage?.quizData) return;
 
     const questionText = quizMessage.quizData.questions[questionIndex].question;
-    const formattedAnswer = formatQuizAnswerForAI(questionIndex, selectedOption, optionText, questionText);
+    const formattedAnswer = formatQuizAnswerForAI(
+      questionIndex,
+      selectedOption,
+      optionText,
+      questionText
+    );
 
     // Send answer to AI for feedback WITHOUT adding user message to chat
     setIsLoading(true);
@@ -119,7 +142,8 @@ const Study: React.FC = () => {
       console.error("Failed to get quiz feedback:", error);
       const errorMessage: ExtendedChatMessage = {
         role: "assistant",
-        content: "I'm sorry, I'm having trouble providing feedback right now. Please try again later.",
+        content:
+          "I'm sorry, I'm having trouble providing feedback right now. Please try again later.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -172,7 +196,8 @@ const Study: React.FC = () => {
       console.error("Failed to send message:", error);
       const errorMessage: ExtendedChatMessage = {
         role: "assistant",
-        content: "I'm sorry, I'm having trouble responding right now. Please try again later.",
+        content:
+          "I'm sorry, I'm having trouble responding right now. Please try again later.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -211,7 +236,10 @@ const Study: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || "Lesson not found"}</p>
-          <button onClick={handleGoBack} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          <button
+            onClick={handleGoBack}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
             Go Back
           </button>
         </div>
@@ -219,7 +247,11 @@ const Study: React.FC = () => {
     );
   }
 
-  const pdfUrl = lesson.filename ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1"}/upload/files/${encodeURIComponent(lesson.filename)}` : "";
+  const pdfUrl = lesson.filename
+    ? `${
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1"
+      }/upload/files/${encodeURIComponent(lesson.filename)}`
+    : "";
 
   // Debug: Log the PDF URL and lesson data
   console.log("Lesson data:", lesson);
@@ -230,7 +262,10 @@ const Study: React.FC = () => {
       {/* Header */}
       <div className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-lg">
         <div className="flex items-center space-x-3">
-          <button onClick={handleGoBack} className="bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded text-sm flex items-center">
+          <button
+            onClick={handleGoBack}
+            className="bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded text-sm flex items-center"
+          >
             ← Back
           </button>
           <div className="text-2xl">📚</div>
@@ -265,19 +300,34 @@ const Study: React.FC = () => {
           <div className="bg-gray-50 border-b border-gray-200">
             <div className="flex">
               <button
+                onClick={() => setActiveTab("chat")}
+                className={`px-4 py-3 text-sm font-medium ${
+                  activeTab === "chat"
+                    ? "bg-white text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                🐟 Ask Tuna
+              </button>
+              <button
                 onClick={() => setActiveTab("summary")}
-                className={`px-4 py-3 text-sm font-medium ${activeTab === "summary" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
+                className={`px-4 py-3 text-sm font-medium ${
+                  activeTab === "summary"
+                    ? "bg-white text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
                 📝 Summary
               </button>
               <button
                 onClick={() => setActiveTab("chapters")}
-                className={`px-4 py-3 text-sm font-medium ${activeTab === "chapters" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
+                className={`px-4 py-3 text-sm font-medium ${
+                  activeTab === "chapters"
+                    ? "bg-white text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
                 📖 Chapters
-              </button>
-              <button
-                onClick={() => setActiveTab("chat")}
-                className={`px-4 py-3 text-sm font-medium ${activeTab === "chat" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
-                🐟 Ask Tuna
               </button>
             </div>
           </div>
@@ -286,43 +336,64 @@ const Study: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             {activeTab === "summary" && (
               <div className="h-full overflow-y-auto p-4">
-                <h3 className="font-semibold text-gray-800 mb-3">Lesson Summary</h3>
+                <h3 className="font-semibold text-gray-800 mb-3">
+                  Lesson Summary
+                </h3>
                 {lesson.summary ? (
                   <div className="prose max-w-none">
-                    <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">{lesson.summary}</div>
+                    <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                      {lesson.summary}
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-gray-500 italic">No summary available for this lesson.</div>
+                  <div className="text-gray-500 italic">
+                    No summary available for this lesson.
+                  </div>
                 )}
               </div>
             )}
 
             {activeTab === "chapters" && (
               <div className="h-full overflow-y-auto p-4">
-                <h3 className="font-semibold text-gray-800 mb-3">Chapter Breakdown (AI Generated)</h3>
+                <h3 className="font-semibold text-gray-800 mb-3">
+                  Chapter Breakdown (AI Generated)
+                </h3>
                 {isLoadingChapters ? (
                   <div className="flex items-center justify-center h-32">
                     <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
                     <span className="ml-2">Generating chapters...</span>
                   </div>
-                ) : chapterizedSummary && chapterizedSummary.chapters.length > 0 ? (
+                ) : chapterizedSummary &&
+                  chapterizedSummary.chapters.length > 0 ? (
                   <div className="space-y-4">
                     {chapterizedSummary.chapters.map((chapter, index) => {
                       // Parse chapter title and content
                       const lines = chapter.split("\n");
-                      const title = lines[0]?.replace(/^Chapter \d+:\s*/, "") || `Chapter ${index + 1}`;
+                      const title =
+                        lines[0]?.replace(/^Chapter \d+:\s*/, "") ||
+                        `Chapter ${index + 1}`;
                       const content = lines.slice(1).join("\n").trim();
 
                       return (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
-                          <h4 className="font-medium text-gray-800 mb-2 text-base">{title}</h4>
-                          <div className="text-gray-700 text-sm whitespace-pre-wrap">{content}</div>
+                        <div
+                          key={index}
+                          className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500"
+                        >
+                          <h4 className="font-medium text-gray-800 mb-2 text-base">
+                            {title}
+                          </h4>
+                          <div className="text-gray-700 text-sm whitespace-pre-wrap">
+                            {content}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="text-gray-500 italic">No chapter breakdown available. Try refreshing to regenerate chapters with AI.</div>
+                  <div className="text-gray-500 italic">
+                    No chapter breakdown available. Try refreshing to regenerate
+                    chapters with AI.
+                  </div>
                 )}
               </div>
             )}
@@ -333,16 +404,48 @@ const Study: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {messages.map((message, index) => (
                     <div key={index}>
-                      <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"}`}>
-                          <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                          {message.timestamp && <div className="text-xs opacity-70 mt-1">{new Date(message.timestamp).toLocaleTimeString()}</div>}
+                      <div
+                        className={`flex ${
+                          message.role === "user"
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                            message.role === "user"
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-200 text-gray-800"
+                          }`}
+                        >
+                          <div className="whitespace-pre-wrap text-sm">
+                            {message.content}
+                          </div>
+                          {message.timestamp && (
+                            <div className="text-xs opacity-70 mt-1">
+                              {new Date(message.timestamp).toLocaleTimeString()}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {/* Render quiz component if this message contains quiz data */}
                       {message.role === "assistant" && message.quizData && (
                         <div className="mt-2">
-                          <QuizComponent quizData={message.quizData} onAnswer={(questionIndex, selectedOption, optionText) => handleQuizAnswer(questionIndex, selectedOption, optionText, index)} />
+                          <QuizComponent
+                            quizData={message.quizData}
+                            onAnswer={(
+                              questionIndex,
+                              selectedOption,
+                              optionText
+                            ) =>
+                              handleQuizAnswer(
+                                questionIndex,
+                                selectedOption,
+                                optionText,
+                                index
+                              )
+                            }
+                          />
                         </div>
                       )}
                     </div>
@@ -363,7 +466,10 @@ const Study: React.FC = () => {
                 {/* Chat Input */}
                 <div className="border-t border-gray-200 p-4">
                   <div className="flex space-x-2 mb-2">
-                    <button onClick={clearChat} className="text-xs text-gray-500 hover:text-gray-700">
+                    <button
+                      onClick={clearChat}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
                       Clear Chat
                     </button>
                   </div>
@@ -379,11 +485,15 @@ const Study: React.FC = () => {
                     <button
                       type="submit"
                       disabled={isLoading || !inputMessage.trim()}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
                       Send
                     </button>
                   </form>
-                  <div className="mt-2 text-xs text-gray-500">💡 Ask about specific concepts, request explanations, or get study tips</div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    💡 Ask about specific concepts, request explanations, or get
+                    study tips
+                  </div>
                 </div>
               </div>
             )}

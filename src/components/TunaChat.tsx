@@ -1,4 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
+
+// Minimal type declarations for browser SpeechRecognition API
+// Only declare if not already present
+
+interface SpeechRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  onresult: ((event: unknown) => void) | null;
+  start: () => void;
+  stop: () => void;
+}
 import { aiApi, type ChatMessage, type ChatResponse } from "../utils/api";
 
 interface TunaChatProps {
@@ -11,7 +26,7 @@ const TunaChat: React.FC<TunaChatProps> = ({ isOpen, onClose }) => {
     {
       role: "assistant",
       content:
-        "Hi! I'm Tuna 🐟, your AI learning assistant. I can help you with questions about lessons, summarize content, or just chat about what you're learning. How can I help you today?",
+        "Hi! I'm Tuna, your AI learning assistant. I can help you with questions about lessons, summarize content, or just chat about what you're learning. How can I help you today?",
       timestamp: new Date().toISOString(),
     },
   ]);
@@ -21,7 +36,10 @@ const TunaChat: React.FC<TunaChatProps> = ({ isOpen, onClose }) => {
     status: string;
     message: string;
   } | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [listening, setListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -98,6 +116,68 @@ const TunaChat: React.FC<TunaChatProps> = ({ isOpen, onClose }) => {
     ]);
   };
 
+  // Speak AI response when voice is enabled
+  useEffect(() => {
+    if (!voiceEnabled) return;
+    if (!window.speechSynthesis) return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === "assistant" && lastMsg.content) {
+      const utter = new window.SpeechSynthesisUtterance(lastMsg.content);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+  }, [messages, voiceEnabled]);
+
+  // Voice input
+  useEffect(() => {
+    if (!voiceEnabled || !isOpen) return;
+    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window))
+      return;
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+    const recognition = new SpeechRecognitionCtor() as SpeechRecognition;
+    recognition.lang = "id-ID";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event: unknown) => {
+      // Use 'unknown' for event to avoid 'any' and TS errors
+      const transcript = (
+        event as {
+          results: { [key: number]: { [key: number]: { transcript: string } } };
+        }
+      ).results[0][0].transcript;
+      setInputMessage(transcript);
+      // Auto-send after speaking
+      setTimeout(() => {
+        if (transcript) {
+          document.getElementById("tuna-chat-send-btn")?.click();
+        }
+      }, 300);
+    };
+    // Start listening automatically
+    recognition.start();
+    return () => {
+      recognition.stop();
+    };
+  }, [voiceEnabled, isOpen]);
+
+  const handleVoiceToggle = () => {
+    setVoiceEnabled((v) => !v);
+    if (recognitionRef.current) recognitionRef.current.stop();
+  };
+
+  const handleVoiceClose = () => {
+    setVoiceEnabled(false);
+    if (recognitionRef.current) recognitionRef.current.stop();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -116,7 +196,27 @@ const TunaChat: React.FC<TunaChatProps> = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
+            {voiceEnabled ? (
+              <>
+                <span className="text-green-200 text-xs">Voice: Aktif</span>
+                <button
+                  onClick={handleVoiceClose}
+                  className="bg-red-500 hover:bg-red-400 px-2 py-1 rounded text-xs"
+                  title="Matikan Voice Mode"
+                >
+                  ✖
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleVoiceToggle}
+                className="bg-blue-500 hover:bg-blue-400 px-2 py-1 rounded text-xs"
+                title="Aktifkan Voice Mode"
+              >
+                🎤 Aktifkan Voice
+              </button>
+            )}
             <button
               onClick={clearChat}
               className="bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded text-sm"
@@ -173,26 +273,40 @@ const TunaChat: React.FC<TunaChatProps> = ({ isOpen, onClose }) => {
 
         {/* Input */}
         <form onSubmit={sendMessage} className="p-4 border-t">
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Ask Tuna anything about your lessons..."
+              placeholder={
+                voiceEnabled
+                  ? "Kamu bisa bicara atau ketik..."
+                  : "Ask Tuna anything about your lessons..."
+              }
               className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
               disabled={isLoading}
             />
             <button
+              id="tuna-chat-send-btn"
               type="submit"
               disabled={isLoading || !inputMessage.trim()}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send
             </button>
+            {voiceEnabled && (
+              <span
+                className={`text-xs px-2 ${
+                  listening ? "text-green-600" : "text-gray-400"
+                }`}
+              >
+                {listening ? "Mendengarkan..." : "🎤 Voice Aktif"}
+              </span>
+            )}
           </div>
           <div className="mt-2 text-xs text-gray-500">
-            💡 Try asking: "Summarize lesson 1", "Explain this concept", or
-            "Help me study"
+            💡 Coba bicara atau ketik: "Ringkas pelajaran 1", "Jelaskan konsep
+            ini", atau "Bantu aku belajar"
           </div>
         </form>
       </div>

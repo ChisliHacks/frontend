@@ -35,7 +35,7 @@ export default function VoiceAssistant() {
     });
     observer.observe(tunaChat, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [window.location.pathname]);
+  }, []);
   const [lastCommand, setLastCommand] = useState("");
   const [navResult, setNavResult] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<string>("");
@@ -121,116 +121,37 @@ export default function VoiceAssistant() {
     }
     // Lessons page voice features
     if (path.startsWith("/lessons")) {
-      // In Study modal: voice command to switch tab to Tuna (QNA)
-      const studyModal = document.querySelector(
-        "[data-study-modal], .study-modal, .modal"
-      );
-      if (studyModal) {
-        // Go to Tuna tab
+      // Voice navigation: go to new pages for summary, chapters, ask tuna
+      // Use a single lessonDetailMatch variable for all navigation logic
+      const lessonDetailMatch = path.match(/^\/lessons\/(\d+)/);
+      if (lessonDetailMatch) {
+        const lessonId = lessonDetailMatch[1];
         if (
           command.includes("go to tuna") ||
           command.includes("ask tuna") ||
-          command.includes("chat with tuna")
+          command.includes("chat with tuna") ||
+          command.includes("tuna")
         ) {
-          const tunaTabBtn = Array.from(
-            studyModal.querySelectorAll("button")
-          ).find(
-            (b) => b.textContent && b.textContent.toLowerCase().includes("tuna")
-          );
-          if (tunaTabBtn) {
-            (tunaTabBtn as HTMLButtonElement).click();
-            setNavResult("Switched to Tuna QNA tab");
-            speak("Switched to Tuna QNA tab");
-          } else {
-            setNavResult("Tuna tab button not found");
-            speak("Tuna tab button not found");
-          }
+          window.location.pathname = `/lessons/${lessonId}/study/chat`;
+          setNavResult("Navigating to Ask Tuna page");
+          speak("Navigating to Ask Tuna page");
           return;
         }
-        // Go to Summary tab and read summary
         if (command.includes("summary")) {
-          const summaryTabBtn = Array.from(
-            studyModal.querySelectorAll("button")
-          ).find(
-            (b) =>
-              b.textContent && b.textContent.toLowerCase().includes("summary")
-          );
-          if (summaryTabBtn) {
-            (summaryTabBtn as HTMLButtonElement).click();
-            setNavResult("Switched to Summary tab");
-            // Try to read summary content
-            setTimeout(() => {
-              const summaryContent = studyModal.querySelector(
-                ".prose, .lesson-summary, .text-gray-700"
-              );
-              if (summaryContent && summaryContent.textContent) {
-                speak(`Summary: ${summaryContent.textContent.trim()}`);
-              } else {
-                speak("No summary available.");
-              }
-            }, 400);
-          } else {
-            setNavResult("Summary tab button not found");
-            speak("Summary tab button not found");
-          }
+          window.location.pathname = `/lessons/${lessonId}/study/summary`;
+          setNavResult("Navigating to Summary page");
+          speak("Navigating to Summary page");
           return;
         }
-      }
-      // In study mode (popup), QNA: detect Study modal and Chat With Tuna button
-      if (
-        (document.querySelector("[data-study-modal], .study-modal, .modal") ||
-          document.querySelector("button[data-study],button.study")) &&
-        (command.includes("qna") ||
-          command.includes("question") ||
-          command.includes("ask") ||
-          command.includes("q & a") ||
-          command.includes("q and a"))
-      ) {
-        // Try to find the Chat With Tuna button inside the modal
-        const tunaBtn = Array.from(document.querySelectorAll("button")).find(
-          (b) =>
-            b.textContent &&
-            b.textContent.trim().toLowerCase().includes("chat with tuna")
-        );
-        if (tunaBtn) {
-          (tunaBtn as HTMLButtonElement).click();
-          setNavResult("Opening QNA (Chat With Tuna)");
-          speak("Opening QNA mode");
-        } else {
-          setNavResult("Chat With Tuna button not found");
-          speak("Chat With Tuna button not found");
-        }
-        return;
-      }
-
-      // In Chat With Tuna, allow voice reply (send message)
-      if (
-        path.includes("study") &&
-        path.includes("chat") &&
-        listening &&
-        lastCommand
-      ) {
-        // Find Tuna chat input
-        const input = document.querySelector(
-          "input[data-tuna-input]"
-        ) as HTMLInputElement | null;
-        if (input) {
-          input.value = lastCommand;
-          const event = new Event("input", { bubbles: true });
-          input.dispatchEvent(event);
-          // Find send button
-          const sendBtn = Array.from(document.querySelectorAll("button")).find(
-            (b) =>
-              b.textContent &&
-              b.textContent.trim().toLowerCase().includes("send")
-          );
-          if (sendBtn) (sendBtn as HTMLButtonElement).click();
-          setNavResult("Message sent to Tuna");
+        if (command.includes("chapter")) {
+          window.location.pathname = `/lessons/${lessonId}/study/chapters`;
+          setNavResult("Navigating to Chapters page");
+          speak("Navigating to Chapters page");
+          return;
         }
       }
       const lessons = getLessonsList();
-      // On /lessons/:id, allow 'give summary' to read the summary of the current lesson
-      const lessonDetailMatch = path.match(/^\/lessons\/(\d+)/);
+      // lessonDetailMatch already declared above
 
       // On /lessons/:id, allow 'go to study' to click the Study button
       if (
@@ -356,17 +277,21 @@ export default function VoiceAssistant() {
         }
       }
       // View lesson by name or by number
-      // Prevent lesson title search if Study modal is open and command matches tab switch
+      // If Study modal is open and command matches tab switch (ask tuna, go to tuna, chat with tuna, summary), always handle tab switch and skip lesson search
       const studyModalEl = document.querySelector(
         "[data-study-modal], .study-modal, .modal"
       );
+      // If path includes 'study', skip lesson search logic for these commands
       const isTabSwitchCmd =
         studyModalEl &&
         (command.includes("go to tuna") ||
           command.includes("ask tuna") ||
           command.includes("chat with tuna") ||
           command.includes("summary"));
-      if (!isTabSwitchCmd) {
+      if (isTabSwitchCmd || path.includes("study")) {
+        // Already handled above (tab switch logic), so skip lesson search
+        return;
+      } else {
         const matchTitle =
           command.match(/(?:select|view)? ?lessons? (.+)/) ||
           command.match(/(?:select|view)? ?lesson (.+)/) ||
@@ -458,12 +383,10 @@ export default function VoiceAssistant() {
         return;
       }
     }
-    // ...existing code for other navigation...
-    // ...existing code...
   });
 
   return (
-    <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 1000 }}>
+    <div style={{ position: "fixed", bottom: 20, left: 20, zIndex: 1000 }}>
       <div
         style={{
           padding: 8,
