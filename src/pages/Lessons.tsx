@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { lessonsApi, uploadApi, type LessonListItem, type LessonCreate } from "../utils/api";
+import {
+  lessonsApi,
+  uploadApi,
+  type LessonListItem,
+  type LessonCreate,
+} from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import LessonModal from "../components/LessonModal";
 
@@ -59,7 +64,11 @@ const Lessons: React.FC = () => {
       if (file) {
         // Since we already processed the file during selection, we might have the summary
         // But we still need to do the actual upload for the lesson creation
-        const uploadResponse = await uploadApi.uploadLessonMaterial(file, file.name, false); // Don't regenerate summary
+        const uploadResponse = await uploadApi.uploadLessonMaterial(
+          file,
+          file.name,
+          false
+        ); // Don't regenerate summary
         filename = uploadResponse.filename;
 
         // Use existing summary or fall back to generated one
@@ -69,10 +78,16 @@ const Lessons: React.FC = () => {
 
         // Log any errors for debugging
         if (uploadResponse.text_extraction_error) {
-          console.warn("Text extraction error:", uploadResponse.text_extraction_error);
+          console.warn(
+            "Text extraction error:",
+            uploadResponse.text_extraction_error
+          );
         }
         if (uploadResponse.summary_error) {
-          console.warn("Summary generation error:", uploadResponse.summary_error);
+          console.warn(
+            "Summary generation error:",
+            uploadResponse.summary_error
+          );
         }
       }
 
@@ -117,7 +132,24 @@ const Lessons: React.FC = () => {
     navigate(`/lessons/${id}`);
   };
 
-  const categories = [...new Set(lessons.map((lesson) => lesson.category).filter((cat) => cat && cat.trim()))];
+  const categories = [
+    ...new Set(
+      lessons
+        .map((lesson) => lesson.category)
+        .filter((cat) => cat && cat.trim())
+    ),
+  ];
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.lessonsList = lessons.map((l) => ({
+        id: l.id,
+        title: l.title,
+        summary: l.summary || "",
+      }));
+      window.dispatchEvent(new Event("lessonsListUpdated"));
+    }
+  }, [lessons]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -126,10 +158,15 @@ const Lessons: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Lessons</h1>
-            <p className="mt-2 text-gray-600">Discover and learn from our comprehensive lesson collection</p>
+            <p className="mt-2 text-gray-600">
+              Discover and learn from our comprehensive lesson collection
+            </p>
           </div>
           {isAuthenticated && (
-            <button onClick={() => setShowModal(true)} className="mt-4 sm:mt-0 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
+            <button
+              onClick={() => setShowModal(true)}
+              className="mt-4 sm:mt-0 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            >
               Create Lesson
             </button>
           )}
@@ -139,7 +176,9 @@ const Lessons: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search Lessons</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search Lessons
+              </label>
               <input
                 type="text"
                 value={searchQuery}
@@ -150,8 +189,14 @@ const Lessons: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
                 <option value="">All Categories</option>
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -162,8 +207,14 @@ const Lessons: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty Level</label>
-              <select value={difficultyFilter} onChange={(e) => setDifficultyFilter(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Difficulty Level
+              </label>
+              <select
+                value={difficultyFilter}
+                onChange={(e) => setDifficultyFilter(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
                 <option value="">All Levels</option>
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
@@ -174,7 +225,11 @@ const Lessons: React.FC = () => {
         </div>
 
         {/* Error Display */}
-        {error && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md mb-6">{error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md mb-6">
+            {error}
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (
@@ -188,18 +243,36 @@ const Lessons: React.FC = () => {
             {lessons.length === 0 ? (
               <div className="col-span-full text-center py-12">
                 <p className="text-gray-500 text-lg">No lessons found.</p>
-                {searchQuery || categoryFilter || difficultyFilter ? <p className="text-gray-400 mt-2">Try adjusting your filters.</p> : null}
+                {searchQuery || categoryFilter || difficultyFilter ? (
+                  <p className="text-gray-400 mt-2">
+                    Try adjusting your filters.
+                  </p>
+                ) : null}
               </div>
             ) : (
               lessons.map((lesson) => (
-                <div key={lesson.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                <div
+                  key={lesson.id}
+                  className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{lesson.title}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                        {lesson.title}
+                      </h3>
                       {isAuthenticated && (
                         <div className="flex space-x-1 ml-2">
-                          <button onClick={() => handleEditLesson(lesson.id)} className="text-gray-400 hover:text-blue-600 p-1" title="Edit">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <button
+                            onClick={() => handleEditLesson(lesson.id)}
+                            className="text-gray-400 hover:text-blue-600 p-1"
+                            title="Edit"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -208,8 +281,17 @@ const Lessons: React.FC = () => {
                               />
                             </svg>
                           </button>
-                          <button onClick={() => handleDeleteLesson(lesson.id)} className="text-gray-400 hover:text-red-600 p-1" title="Delete">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <button
+                            onClick={() => handleDeleteLesson(lesson.id)}
+                            className="text-gray-400 hover:text-red-600 p-1"
+                            title="Delete"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -222,14 +304,28 @@ const Lessons: React.FC = () => {
                       )}
                     </div>
 
-                    <p className="text-gray-600 text-sm mb-2 line-clamp-3">{lesson.summary || lesson.description || "No description available"}</p>
-                    {lesson.summary && lesson.summary !== lesson.description && <p className="text-gray-500 text-xs mb-2">Summary available</p>}
+                    <p className="text-gray-600 text-sm mb-2 line-clamp-3">
+                      {lesson.summary ||
+                        lesson.description ||
+                        "No description available"}
+                    </p>
+                    {lesson.summary &&
+                      lesson.summary !== lesson.description && (
+                        <p className="text-gray-500 text-xs mb-2">
+                          Summary available
+                        </p>
+                      )}
 
                     <div className="mb-4 p-2 bg-gray-50 rounded-md">
                       {lesson.filename && lesson.filename.trim() ? (
                         <div className="flex items-center justify-between truncate">
                           <div className="flex items-center">
-                            <svg className="w-4 h-4 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg
+                              className="w-4 h-4 text-blue-500 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -237,15 +333,27 @@ const Lessons: React.FC = () => {
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                               />
                             </svg>
-                            <span className="text-sm text-gray-700 truncate">{lesson.filename}</span>
+                            <span className="text-sm text-gray-700 truncate">
+                              {lesson.filename}
+                            </span>
                           </div>
-                          <a href={uploadApi.getFileUrl(lesson.filename)} download className="text-blue-600 hover:text-blue-800 text-sm" title="Download file">
+                          <a
+                            href={uploadApi.getFileUrl(lesson.filename)}
+                            download
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                            title="Download file"
+                          >
                             Download
                           </a>
                         </div>
                       ) : (
                         <div className="flex items-center justify-center">
-                          <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            className="w-4 h-4 text-gray-400 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -253,7 +361,9 @@ const Lessons: React.FC = () => {
                               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             />
                           </svg>
-                          <span className="text-sm text-gray-500">No file attached</span>
+                          <span className="text-sm text-gray-500">
+                            No file attached
+                          </span>
                           <span className="ml-2 text-gray-400">-</span>
                         </div>
                       )}
@@ -261,9 +371,21 @@ const Lessons: React.FC = () => {
 
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-2">
-                        {lesson.category && <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{lesson.category}</span>}
-                        {lesson.duration_minutes > 0 && <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{lesson.duration_minutes}min</span>}
-                        {lesson.lesson_score > 0 && <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">{lesson.lesson_score} pts</span>}
+                        {lesson.category && (
+                          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                            {lesson.category}
+                          </span>
+                        )}
+                        {lesson.duration_minutes > 0 && (
+                          <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">
+                            {lesson.duration_minutes}min
+                          </span>
+                        )}
+                        {lesson.lesson_score > 0 && (
+                          <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                            {lesson.lesson_score} pts
+                          </span>
+                        )}
                       </div>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${
@@ -272,12 +394,16 @@ const Lessons: React.FC = () => {
                             : lesson.difficulty_level === "Intermediate"
                             ? "bg-yellow-100 text-yellow-800"
                             : "bg-red-100 text-red-800"
-                        }`}>
+                        }`}
+                      >
                         {lesson.difficulty_level}
                       </span>
                     </div>
 
-                    <button onClick={() => handleViewLesson(lesson.id)} className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                    <button
+                      onClick={() => handleViewLesson(lesson.id)}
+                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+                    >
                       View Lesson
                     </button>
                   </div>
@@ -289,7 +415,12 @@ const Lessons: React.FC = () => {
       </div>
 
       {/* Create Lesson Modal */}
-      <LessonModal isOpen={showModal} onClose={() => setShowModal(false)} onSubmit={handleCreateLesson} isLoading={creatingLesson} />
+      <LessonModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleCreateLesson}
+        isLoading={creatingLesson}
+      />
     </div>
   );
 };
