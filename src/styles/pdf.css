@@ -1,0 +1,62 @@
+/* PDF.js styles for react-pdf */
+.react-pdf__Page {
+  position: relative;
+  display: block;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  margin: 1rem auto;
+  background-color: white;
+}
+
+.react-pdf__Page__canvas {
+  display: block;
+  user-select: none;
+}
+
+.react-pdf__Page__textContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.2;
+  line-height: 1;
+}
+
+.react-pdf__Page__textContent span {
+  position: absolute;
+  color: transparent;
+  font-size: 1px;
+  font-family: sans-serif;
+  transform-origin: 0% 0%;
+}
+
+.react-pdf__Page__annotations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.react-pdf__Page__annotation {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  background-color: #f3f4f6;
+}
+
+.react-pdf__message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
