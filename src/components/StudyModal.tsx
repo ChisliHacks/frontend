@@ -226,7 +226,7 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
   const [messages, setMessages] = useState<ExtendedChatMessage[]>([
     {
       role: "assistant",
-      content: `Hi! I'm Tuna 🐟, and I'm here to help you study "${lessonTitle}". I have access to the lesson content and can answer questions about specific concepts, explain difficult topics, or help you understand the material better. What would you like to know?`,
+      content: `Hi! I'm Tuna, and I'm here to help you study "${lessonTitle}". I have access to the lesson content and can answer questions about specific concepts, explain difficult topics, or help you understand the material better. What would you like to know?`,
       timestamp: new Date().toISOString(),
     },
   ]);
@@ -269,7 +269,7 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
       setMessages([
         {
           role: "assistant",
-          content: `Hi! I'm Tuna 🐟, and I'm here to help you study "${lessonTitle}". I have access to the lesson content and can answer questions about specific concepts, explain difficult topics, or help you understand the material better. What would you like to know?`,
+          content: `Hi! I'm Tuna, and I'm here to help you study "${lessonTitle}". I have access to the lesson content and can answer questions about specific concepts, explain difficult topics, or help you understand the material better. What would you like to know?`,
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -419,17 +419,17 @@ const StudyModal: React.FC<StudyModalProps> = (props) => {
                 <button
                   onClick={() => setActiveTab("chat")}
                   className={`px-4 py-3 text-sm font-medium ${activeTab === "chat" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
-                  🐟 Ask Tuna
+                  Ask Tuna
                 </button>
                 <button
                   onClick={() => setActiveTab("chapters")}
                   className={`px-4 py-3 text-sm font-medium ${activeTab === "chapters" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
-                  📖 Chapters
+                  Chapters
                 </button>
                 <button
                   onClick={() => setActiveTab("summary")}
                   className={`px-4 py-3 text-sm font-medium ${activeTab === "summary" ? "bg-white text-blue-600 border-b-2 border-blue-600" : "text-gray-600 hover:text-gray-800"}`}>
-                  📝 Summary
+                  Summary
                 </button>
               </div>
             </div>

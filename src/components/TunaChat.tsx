@@ -186,7 +186,6 @@ const TunaChat: React.FC<TunaChatProps> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <div className="text-2xl">🐟</div>
             <div>
               <h3 className="text-lg font-semibold">Tuna AI Assistant</h3>
               <p className="text-sm opacity-90">
