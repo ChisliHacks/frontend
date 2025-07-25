@@ -9,7 +9,7 @@ type LessonFormData = {
   summary?: string;
   description?: string;
   duration_minutes?: number;
-  is_published: boolean;
+  lesson_score?: number;
   related_job_ids?: number[];
   related_job_positions?: string[];
 };
@@ -30,7 +30,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       summary: "",
       description: "",
       duration_minutes: undefined,
-      is_published: false,
+      lesson_score: 0,
       related_job_ids: [],
       related_job_positions: [],
     },
@@ -63,7 +63,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       summary: data.summary || "",
       description: data.description || "",
       duration_minutes: data.duration_minutes,
-      is_published: data.is_published,
+      lesson_score: data.lesson_score || 0,
       related_job_ids: selectedJobIds,
       related_job_positions: selectedJobPositions,
     };
@@ -298,7 +298,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
       summary: "",
       description: "",
       duration_minutes: undefined,
-      is_published: false,
+      lesson_score: 0,
       related_job_ids: [],
       related_job_positions: [],
     });
@@ -538,6 +538,35 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
                 />
               </div>
             )}
+
+            {/* Lesson Score */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lesson Score (points)</label>
+              <Controller
+                name="lesson_score"
+                control={control}
+                rules={{
+                  min: {
+                    value: 0,
+                    message: "Score must be non-negative",
+                  },
+                }}
+                render={({ field: { value, onChange, ...field }, fieldState: { error } }) => (
+                  <>
+                    <input
+                      {...field}
+                      type="number"
+                      value={value || ""}
+                      onChange={(e) => onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                      min="0"
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 ${error ? "border-red-500" : ""}`}
+                      placeholder="e.g., 10"
+                    />
+                    {error && <p className="text-red-500 text-sm mt-1">{error.message}</p>}
+                  </>
+                )}
+              />
+            </div>
           </div>
 
           {/* Related Jobs Section */}
@@ -594,15 +623,6 @@ const LessonModal: React.FC<LessonModalProps> = ({ isOpen, onClose, onSubmit, is
                 {selectedJobIds.length} existing job(s) + {selectedJobPositions.length} AI suggested position(s) selected
               </p>
             )}
-          </div>
-
-          <div className="flex items-center">
-            <Controller
-              name="is_published"
-              control={control}
-              render={({ field }) => <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)} className="mr-2" />}
-            />
-            <label className="text-sm font-medium text-gray-700">Publish immediately</label>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">

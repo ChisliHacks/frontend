@@ -79,9 +79,11 @@ const Lessons: React.FC = () => {
       // Create lesson with the data
       const lessonToCreate: LessonCreate = {
         ...lessonData,
-        description: lessonData.description || "", // Ensure description is never undefined
-        summary: summary || undefined,
-        filename: filename || undefined,
+        description: lessonData.description || "",
+        summary: summary || "",
+        filename: filename || "",
+        duration_minutes: lessonData.duration_minutes || 0,
+        lesson_score: lessonData.lesson_score || 0,
       };
 
       await lessonsApi.createLesson(lessonToCreate);
@@ -115,7 +117,7 @@ const Lessons: React.FC = () => {
     navigate(`/lessons/${id}`);
   };
 
-  const categories = [...new Set(lessons.map((lesson) => lesson.category).filter(Boolean))];
+  const categories = [...new Set(lessons.map((lesson) => lesson.category).filter((cat) => cat && cat.trim()))];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -221,10 +223,10 @@ const Lessons: React.FC = () => {
                     </div>
 
                     <p className="text-gray-600 text-sm mb-2 line-clamp-3">{lesson.summary || lesson.description || "No description available"}</p>
-                    {lesson.summary && lesson.description && <p className="text-gray-500 text-xs mb-2">Summary available</p>}
+                    {lesson.summary && lesson.summary !== lesson.description && <p className="text-gray-500 text-xs mb-2">Summary available</p>}
 
                     <div className="mb-4 p-2 bg-gray-50 rounded-md">
-                      {lesson.filename ? (
+                      {lesson.filename && lesson.filename.trim() ? (
                         <div className="flex items-center justify-between truncate">
                           <div className="flex items-center">
                             <svg className="w-4 h-4 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,7 +262,8 @@ const Lessons: React.FC = () => {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-2">
                         {lesson.category && <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{lesson.category}</span>}
-                        {lesson.duration_minutes && <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{lesson.duration_minutes}min</span>}
+                        {lesson.duration_minutes > 0 && <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{lesson.duration_minutes}min</span>}
+                        {lesson.lesson_score > 0 && <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">{lesson.lesson_score} pts</span>}
                       </div>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${

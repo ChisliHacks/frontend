@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 export interface LoginData {
   username: string;
@@ -22,6 +21,8 @@ export interface UserProfile {
   email: string;
   username: string;
   is_active: boolean;
+  lessons_completed: number;
+  total_lesson_score: number;
 }
 
 export interface Job {
@@ -61,14 +62,13 @@ export interface RelatedJobBasic {
 export interface Lesson {
   id: number;
   title: string;
-  description?: string;
-  summary?: string;
+  description: string;
+  summary: string;
   category: string;
-  filename?: string;
-  duration_minutes?: number;
+  filename: string;
+  duration_minutes: number;
   difficulty_level: string;
-  is_published: boolean;
-  instructor_id?: number;
+  lesson_score: number;
   created_at: string;
   updated_at?: string;
   related_jobs?: RelatedJobBasic[];
@@ -77,14 +77,13 @@ export interface Lesson {
 export interface LessonListItem {
   id: number;
   title: string;
-  description?: string;
-  summary?: string;
+  description: string;
+  summary: string;
   category: string;
-  filename?: string;
-  duration_minutes?: number;
+  filename: string;
+  duration_minutes: number;
   difficulty_level: string;
-  is_published: boolean;
-  instructor_id?: number;
+  lesson_score: number;
   created_at: string;
   related_jobs?: RelatedJobBasic[];
 }
@@ -97,8 +96,7 @@ export interface LessonCreate {
   filename?: string;
   duration_minutes?: number;
   difficulty_level?: string;
-  is_published?: boolean;
-  instructor_id?: number;
+  lesson_score?: number;
   related_job_ids?: number[];
   related_job_positions?: string[];
 }
@@ -111,8 +109,7 @@ export interface LessonUpdate {
   filename?: string;
   duration_minutes?: number;
   difficulty_level?: string;
-  is_published?: boolean;
-  instructor_id?: number;
+  lesson_score?: number;
   related_job_ids?: number[];
   related_job_positions?: string[];
 }
@@ -315,10 +312,7 @@ export const authApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Registration failed",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Registration failed", response.status);
     }
 
     return response.json();
@@ -342,10 +336,7 @@ export const authApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch profile",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch profile", response.status);
     }
 
     return response.json();
@@ -370,10 +361,31 @@ export const authApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to update profile",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to update profile", response.status);
+    }
+
+    return response.json();
+  },
+
+  async completeLesson(lessonId: number): Promise<{ success: boolean; message: string; points_earned: number; total_lessons_completed: number; total_score: number }> {
+    const token = localStorage.getItem("access_token");
+    const tokenType = localStorage.getItem("token_type") || "bearer";
+
+    if (!token) {
+      throw new ApiError("No authentication token found", 401);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}/complete`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new ApiError(errorData.detail || "Failed to complete lesson", response.status);
     }
 
     return response.json();
@@ -381,82 +393,51 @@ export const authApi = {
 };
 
 export const lessonsApi = {
-  async getLessons(params?: {
-    skip?: number;
-    limit?: number;
-    category?: string;
-    difficulty_level?: string;
-    is_published?: boolean;
-  }): Promise<LessonListItem[]> {
+  async getLessons(params?: { skip?: number; limit?: number; category?: string; difficulty_level?: string }): Promise<LessonListItem[]> {
     const queryParams = new URLSearchParams();
 
     if (params) {
-      if (params.skip !== undefined)
-        queryParams.append("skip", params.skip.toString());
-      if (params.limit !== undefined)
-        queryParams.append("limit", params.limit.toString());
+      if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) queryParams.append("limit", params.limit.toString());
       if (params.category) queryParams.append("category", params.category);
-      if (params.difficulty_level)
-        queryParams.append("difficulty_level", params.difficulty_level);
-      if (params.is_published !== undefined)
-        queryParams.append("is_published", params.is_published.toString());
+      if (params.difficulty_level) queryParams.append("difficulty_level", params.difficulty_level);
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/lessons?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/lessons?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch lessons",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch lessons", response.status);
     }
 
     return response.json();
   },
 
-  async getPublishedLessons(params?: {
-    skip?: number;
-    limit?: number;
-    category?: string;
-    difficulty_level?: string;
-  }): Promise<LessonListItem[]> {
+  async getPublishedLessons(params?: { skip?: number; limit?: number; category?: string; difficulty_level?: string }): Promise<LessonListItem[]> {
     const queryParams = new URLSearchParams();
 
     if (params) {
-      if (params.skip !== undefined)
-        queryParams.append("skip", params.skip.toString());
-      if (params.limit !== undefined)
-        queryParams.append("limit", params.limit.toString());
+      if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) queryParams.append("limit", params.limit.toString());
       if (params.category) queryParams.append("category", params.category);
-      if (params.difficulty_level)
-        queryParams.append("difficulty_level", params.difficulty_level);
+      if (params.difficulty_level) queryParams.append("difficulty_level", params.difficulty_level);
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/lessons/published?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/lessons/published?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch published lessons",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch published lessons", response.status);
     }
 
     return response.json();
@@ -472,10 +453,7 @@ export const lessonsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch lesson",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch lesson", response.status);
     }
 
     return response.json();
@@ -494,31 +472,22 @@ export const lessonsApi = {
     queryParams.append("q", query);
 
     if (params) {
-      if (params.skip !== undefined)
-        queryParams.append("skip", params.skip.toString());
-      if (params.limit !== undefined)
-        queryParams.append("limit", params.limit.toString());
+      if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) queryParams.append("limit", params.limit.toString());
       if (params.category) queryParams.append("category", params.category);
-      if (params.difficulty_level)
-        queryParams.append("difficulty_level", params.difficulty_level);
+      if (params.difficulty_level) queryParams.append("difficulty_level", params.difficulty_level);
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/lessons/search?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/lessons/search?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to search lessons",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to search lessons", response.status);
     }
 
     return response.json();
@@ -543,10 +512,7 @@ export const lessonsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to create lesson",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to create lesson", response.status);
     }
 
     return response.json();
@@ -571,10 +537,7 @@ export const lessonsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to update lesson",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to update lesson", response.status);
     }
 
     return response.json();
@@ -598,10 +561,7 @@ export const lessonsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to delete lesson",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to delete lesson", response.status);
     }
   },
 };
@@ -620,84 +580,55 @@ export const jobsApi = {
     const queryParams = new URLSearchParams();
 
     if (params) {
-      if (params.skip !== undefined)
-        queryParams.append("skip", params.skip.toString());
-      if (params.limit !== undefined)
-        queryParams.append("limit", params.limit.toString());
+      if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) queryParams.append("limit", params.limit.toString());
       if (params.company) queryParams.append("company", params.company);
       if (params.location) queryParams.append("location", params.location);
       if (params.job_type) queryParams.append("job_type", params.job_type);
-      if (params.experience_level)
-        queryParams.append("experience_level", params.experience_level);
-      if (params.remote_option !== undefined)
-        queryParams.append("remote_option", params.remote_option.toString());
-      if (params.is_active !== undefined)
-        queryParams.append("is_active", params.is_active.toString());
+      if (params.experience_level) queryParams.append("experience_level", params.experience_level);
+      if (params.remote_option !== undefined) queryParams.append("remote_option", params.remote_option.toString());
+      if (params.is_active !== undefined) queryParams.append("is_active", params.is_active.toString());
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/jobs?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/jobs?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch jobs",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch jobs", response.status);
     }
 
     return response.json();
   },
 
-  async getActiveJobs(params?: {
-    skip?: number;
-    limit?: number;
-    company?: string;
-    location?: string;
-    job_type?: string;
-    experience_level?: string;
-    remote_option?: boolean;
-  }): Promise<JobListItem[]> {
+  async getActiveJobs(params?: { skip?: number; limit?: number; company?: string; location?: string; job_type?: string; experience_level?: string; remote_option?: boolean }): Promise<JobListItem[]> {
     const queryParams = new URLSearchParams();
     queryParams.append("is_active", "true");
 
     if (params) {
-      if (params.skip !== undefined)
-        queryParams.append("skip", params.skip.toString());
-      if (params.limit !== undefined)
-        queryParams.append("limit", params.limit.toString());
+      if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) queryParams.append("limit", params.limit.toString());
       if (params.company) queryParams.append("company", params.company);
       if (params.location) queryParams.append("location", params.location);
       if (params.job_type) queryParams.append("job_type", params.job_type);
-      if (params.experience_level)
-        queryParams.append("experience_level", params.experience_level);
-      if (params.remote_option !== undefined)
-        queryParams.append("remote_option", params.remote_option.toString());
+      if (params.experience_level) queryParams.append("experience_level", params.experience_level);
+      if (params.remote_option !== undefined) queryParams.append("remote_option", params.remote_option.toString());
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/jobs?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/jobs?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch active jobs",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch active jobs", response.status);
     }
 
     return response.json();
@@ -713,10 +644,7 @@ export const jobsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to fetch job",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to fetch job", response.status);
     }
 
     return response.json();
@@ -737,34 +665,24 @@ export const jobsApi = {
     queryParams.append("q", query);
 
     if (params) {
-      if (params.skip !== undefined)
-        queryParams.append("skip", params.skip.toString());
-      if (params.limit !== undefined)
-        queryParams.append("limit", params.limit.toString());
+      if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) queryParams.append("limit", params.limit.toString());
       if (params.location) queryParams.append("location", params.location);
       if (params.job_type) queryParams.append("job_type", params.job_type);
-      if (params.experience_level)
-        queryParams.append("experience_level", params.experience_level);
-      if (params.remote_option !== undefined)
-        queryParams.append("remote_option", params.remote_option.toString());
+      if (params.experience_level) queryParams.append("experience_level", params.experience_level);
+      if (params.remote_option !== undefined) queryParams.append("remote_option", params.remote_option.toString());
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/jobs/search?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/jobs/search?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to search jobs",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to search jobs", response.status);
     }
 
     return response.json();
@@ -789,10 +707,7 @@ export const jobsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to create job",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to create job", response.status);
     }
 
     return response.json();
@@ -817,10 +732,7 @@ export const jobsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to update job",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to update job", response.status);
     }
 
     return response.json();
@@ -844,10 +756,7 @@ export const jobsApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to delete job",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to delete job", response.status);
     }
   },
 };
@@ -873,11 +782,7 @@ export const tokenUtils = {
 };
 
 export const uploadApi = {
-  async uploadLessonMaterial(
-    file: File,
-    filename: string,
-    generateSummary: boolean = true
-  ): Promise<LessonMaterialUploadResponse> {
+  async uploadLessonMaterial(file: File, filename: string, generateSummary: boolean = true): Promise<LessonMaterialUploadResponse> {
     const token = localStorage.getItem("access_token");
     const tokenType = localStorage.getItem("token_type") || "bearer";
 
@@ -888,25 +793,17 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(
-      `${API_BASE_URL}/upload/upload-lesson-material?filename=${encodeURIComponent(
-        filename
-      )}&generate_summary=${generateSummary}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `${tokenType} ${token}`,
-        },
-        body: formData,
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/upload/upload-lesson-material?filename=${encodeURIComponent(filename)}&generate_summary=${generateSummary}`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+      },
+      body: formData,
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to upload lesson material",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to upload lesson material", response.status);
     }
 
     return response.json();
@@ -923,25 +820,17 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(
-      `${API_BASE_URL}/upload/upload-file?filename=${encodeURIComponent(
-        filename
-      )}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `${tokenType} ${token}`,
-        },
-        body: formData,
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/upload/upload-file?filename=${encodeURIComponent(filename)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+      },
+      body: formData,
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to upload file",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to upload file", response.status);
     }
 
     return response.json();
@@ -955,23 +844,17 @@ export const uploadApi = {
       throw new ApiError("No authentication token found", 401);
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/upload/files/${encodeURIComponent(filename)}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `${tokenType} ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/upload/files/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `${tokenType} ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to delete file",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to delete file", response.status);
     }
   },
 
@@ -1000,10 +883,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to chat with Tuna",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to chat with Tuna", response.status);
     }
 
     return response.json();
@@ -1028,18 +908,13 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to summarize text",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to summarize text", response.status);
     }
 
     return response.json();
   },
 
-  async summarizeLesson(
-    request: LessonSummaryRequest
-  ): Promise<LessonSummaryResponse> {
+  async summarizeLesson(request: LessonSummaryRequest): Promise<LessonSummaryResponse> {
     const token = localStorage.getItem("access_token");
     const tokenType = localStorage.getItem("token_type") || "bearer";
 
@@ -1058,18 +933,13 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to summarize lesson",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to summarize lesson", response.status);
     }
 
     return response.json();
   },
 
-  async createChapterizedSummary(
-    request: ChapterizedSummaryRequest
-  ): Promise<ChapterizedSummaryResponse> {
+  async createChapterizedSummary(request: ChapterizedSummaryRequest): Promise<ChapterizedSummaryResponse> {
     const token = localStorage.getItem("access_token");
     const tokenType = localStorage.getItem("token_type") || "bearer";
 
@@ -1088,10 +958,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to create chapterized summary",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to create chapterized summary", response.status);
     }
 
     return response.json();
@@ -1115,10 +982,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to get AI status",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to get AI status", response.status);
     }
 
     return response.json();
@@ -1142,18 +1006,13 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to setup AI model",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to setup AI model", response.status);
     }
 
     return response.json();
   },
 
-  async suggestJobs(
-    request: JobSuggestionRequest
-  ): Promise<JobSuggestionResponse> {
+  async suggestJobs(request: JobSuggestionRequest): Promise<JobSuggestionResponse> {
     const token = localStorage.getItem("access_token");
     const tokenType = localStorage.getItem("token_type") || "bearer";
 
@@ -1172,18 +1031,13 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to suggest jobs",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to suggest jobs", response.status);
     }
 
     return response.json();
   },
 
-  async suggestCategory(
-    request: CategorySuggestionRequest
-  ): Promise<CategorySuggestionResponse> {
+  async suggestCategory(request: CategorySuggestionRequest): Promise<CategorySuggestionResponse> {
     const token = localStorage.getItem("access_token");
     const tokenType = localStorage.getItem("token_type") || "bearer";
 
@@ -1202,10 +1056,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new ApiError(
-        errorData.detail || "Failed to suggest category",
-        response.status
-      );
+      throw new ApiError(errorData.detail || "Failed to suggest category", response.status);
     }
 
     return response.json();
